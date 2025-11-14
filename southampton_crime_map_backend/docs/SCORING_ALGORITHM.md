@@ -906,27 +906,7 @@ ZOOM_TO_RESOLUTION = {
 
 **Complexity:** O(c) pre-aggregation, O(1) query per resolution
 
-### 2. Machine Learning Risk Prediction
-
-**Current:** Historical aggregation
-**Proposed:** Predictive modeling with temporal patterns
-
-```python
-# Features: day_of_week, hour, weather, events, historical
-model = GradientBoostingRegressor()
-predicted_risk = model.predict(features)
-```
-
-**Complexity:** O(f × log(t)) where f = features, t = training samples
-
-### 3. Real-Time Crime Feed Integration
-
-**Current:** Monthly batch updates
-**Proposed:** Daily/hourly incremental updates
-
-**Complexity:** O(n) incremental insert vs O(n log n) full rebuild
-
-### 4. Alternative Route Optimization
+### 2. Alternative Route Optimization
 
 **Current:** Score existing ORS routes
 **Proposed:** Generate custom routes minimizing risk
