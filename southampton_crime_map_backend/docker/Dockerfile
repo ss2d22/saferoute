@@ -19,8 +19,9 @@ RUN pip install poetry poetry-plugin-export
 COPY pyproject.toml poetry.lock* ./
 
 # Export dependencies to requirements.txt
-RUN poetry export -f requirements.txt --output requirements.txt --without-hashes || \
-    poetry install --only main --no-root && pip freeze > requirements.txt
+# Use --only main to export only production dependencies
+RUN poetry export -f requirements.txt --output requirements.txt --without-hashes --only main || \
+    (poetry install --only main --no-root && poetry run pip freeze > requirements.txt)
 
 # Runtime stage
 FROM python:3.11-slim
