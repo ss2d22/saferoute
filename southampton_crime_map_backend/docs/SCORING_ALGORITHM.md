@@ -513,13 +513,11 @@ def score_route(segments: List[RouteSegment]) -> float:
 
 - **Problem:** Naive intersection test is O(c) per segment
 - **Solution:** PostGIS GiST index reduces to O(log c + k)
-- **Impact:** 100x - 1000x speedup for large datasets
 
 **2. Caching**
 
 - **Problem:** Repeated snapshot queries expensive
 - **Solution:** Redis cache with 15-minute TTL
-- **Impact:** Sub-millisecond response for cache hits
 
 **3. H3 Hierarchical Aggregation** (Future Enhancement)
 
@@ -531,7 +529,6 @@ def score_route(segments: List[RouteSegment]) -> float:
 
 - **Problem:** Processing months individually is slow
 - **Solution:** Bulk insert with SQLAlchemy ORM batching
-- **Impact:** 10x speedup (48K incidents in ~2 minutes)
 
 ---
 
