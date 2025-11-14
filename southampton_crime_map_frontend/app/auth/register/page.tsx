@@ -58,7 +58,8 @@ export default function RegisterPage() {
       router.push("/auth/login");
     } catch (error) {
       if (error instanceof ApiError) {
-        toast.error(error.data?.detail || "This email may already be registered.");
+        const errorData = error.data as { detail?: string };
+        toast.error(errorData.detail || "This email may already be registered.");
       } else {
         toast.error("An unexpected error occurred. Please try again.");
       }

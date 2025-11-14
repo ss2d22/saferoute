@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -63,7 +64,7 @@ type LeafletGeoJSON = any;
 type LeafletLatLngBounds = any;
 type LeafletMouseEvent = any;
 
-export default function MapPage() {
+function MapPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuth();
@@ -114,8 +115,6 @@ export default function MapPage() {
       if (!map || !L.current) {
         return;
       }
-
-      // renderHeatmap invoked
 
       // Remove existing heatmap layer
       if (heatmapLayerRef.current) {
@@ -234,15 +233,12 @@ export default function MapPage() {
           lookback_months: lookbackMonths,
           time_of_day: timeOfDay !== "all" ? (timeOfDay as any) : undefined,
         });
-
         setSafetyCells(response.cells);
 
         if (response.cells.length > 0) {
           renderHeatmap(response.cells);
         }
-      } catch (error) {
-        // Failed to load safety data
-      }
+      } catch (error) {}
     },
     [lookbackMonths, timeOfDay, showHeatmap, renderHeatmap]
   );
@@ -368,7 +364,7 @@ export default function MapPage() {
         }`
       );
     } catch (error) {
-      // Failed to find routes
+      console.error("Failed to find routes:", error);
       toast.error("Failed to find routes");
     } finally {
       setLoading(false);
@@ -456,7 +452,10 @@ export default function MapPage() {
               // Extract coordinates for this segment
               const segmentCoords = coordinates
                 .slice(startIdx, endIdx + 1)
-                .map(([lng, lat]: [number, number]) => [lat, lng]);
+                .map((coord: number[]) => {
+                  const [lng, lat] = coord;
+                  return [lat, lng];
+                });
 
               if (segmentCoords.length > 1) {
                 const segmentLayer = L.current.polyline(segmentCoords, {
@@ -507,7 +506,9 @@ export default function MapPage() {
       if (routes.length > 0) {
         const bounds = L.current.latLngBounds([]);
         routes.forEach((route) => {
-          route.geometry.coordinates.forEach(([lng, lat]: [number, number]) => {
+          route.geometry.coordinates.forEach((coord: number[]) => {
+            const lng = coord[0];
+            const lat = coord[1];
             bounds.extend([lat, lng]);
           });
         });
@@ -602,7 +603,7 @@ export default function MapPage() {
           }, 500);
         }
       } catch (error) {
-        // Failed to parse URL parameters
+        console.error("Failed to parse URL parameters:", error);
       }
     }
   }, [searchParams, mapRef.current, L.current]);
@@ -845,7 +846,7 @@ export default function MapPage() {
               </TabsContent>
 
               <TabsContent value="heatmap" className="mt-4 space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border-border/30">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-muted-foreground" />
                     <Label className="text-sm font-medium">Show Heatmap</Label>
@@ -1124,5 +1125,19 @@ export default function MapPage() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+export default function MapPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <MapPageContent />
+    </Suspense>
   );
 }
