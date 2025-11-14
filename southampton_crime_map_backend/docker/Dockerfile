@@ -34,14 +34,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry for development (needed when volume mount overwrites /app)
-RUN pip install --no-cache-dir poetry
-
 # Copy requirements from builder
 COPY --from=builder /app/requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies (including gunicorn, uvicorn, celery)
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Poetry for running celery/management commands
+RUN pip install --no-cache-dir poetry
 
 # Copy application code
 COPY . .
