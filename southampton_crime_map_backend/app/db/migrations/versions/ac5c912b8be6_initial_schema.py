@@ -62,7 +62,7 @@ def upgrade() -> None:
             "geom",
             geoalchemy2.types.Geometry(
                 geometry_type="POLYGON",
-                srid=27700,
+                srid=4326,
                 from_text="ST_GeomFromEWKT",
                 name="geometry",
                 nullable=False,
