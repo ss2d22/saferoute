@@ -1,254 +1,224 @@
 #!/usr/bin/env python3
 """
-Ingest Southampton crime data for the last 12 months from UK Police API.
+Ingest Southampton crime data from UK Police API using Celery tasks.
 
 Usage:
-    python scripts/ingest_crime_data.py [--months 12]
+    python scripts/ingest_crime_data.py [--start-year 2024] [--start-month 6] [--end-year 2025] [--end-month 9]
+    python scripts/ingest_crime_data.py --months 12  # Ingest last 12 months
 """
 import argparse
-import asyncio
 import sys
-from datetime import datetime, timedelta
-from typing import List
-
-import httpx
-from sqlalchemy import text
+from datetime import date
+from dateutil.relativedelta import relativedelta
 
 # Add parent directory to path to import app modules
 sys.path.insert(0, '/app')
 
-from app.config import get_settings
-from app.db.base import SessionLocal
-
-settings = get_settings()
+from app.tasks.ingestion_tasks import ingest_month_on_demand, rebuild_safety_grid
 
 
-async def fetch_crime_data_for_month(
-    client: httpx.AsyncClient,
-    bbox: List[float],
-    year_month: str
-) -> List[dict]:
+def ingest_date_range(start_year: int, start_month: int, end_year: int, end_month: int):
     """
-    Fetch crime data for a specific month from UK Police API.
+    Ingest crime data for a specific date range.
 
     Args:
-        client: HTTP client
-        bbox: Bounding box [min_lat, min_lon, max_lat, max_lon]
-        year_month: Date in format YYYY-MM
-
-    Returns:
-        List of crime records
-    """
-    # UK Police API expects poly parameter as lat,lon pairs
-    # Create a simple rectangle
-    min_lat, min_lon, max_lat, max_lon = bbox
-
-    poly = f"{min_lat},{min_lon}:{max_lat},{min_lon}:{max_lat},{max_lon}:{min_lat},{max_lon}"
-
-    url = f"{settings.POLICE_API_BASE_URL}/crimes-street/all-crime"
-    params = {
-        "poly": poly,
-        "date": year_month
-    }
-
-    try:
-        response = await client.get(url, params=params, timeout=30.0)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError as e:
-        print(f"  ✗ HTTP error fetching data for {year_month}: {e}")
-        return []
-    except Exception as e:
-        print(f"  ✗ Error fetching data for {year_month}: {e}")
-        return []
-
-
-def process_and_store_crimes(db, crimes: List[dict], year_month: str) -> int:
-    """
-    Process and store crimes in database.
-
-    Args:
-        db: Database session
-        crimes: List of crime records from API
-        year_month: Date string for this batch
-
-    Returns:
-        Number of crimes stored
-    """
-    if not crimes:
-        return 0
-
-    stored = 0
-
-    for crime in crimes:
-        try:
-            # Extract data
-            crime_id = crime.get('id')
-            if not crime_id:
-                continue
-
-            category = crime.get('category', 'unknown')
-            location = crime.get('location', {})
-            latitude = location.get('latitude')
-            longitude = location.get('longitude')
-            street_name = location.get('street', {}).get('name', 'Unknown')
-            month = crime.get('month', year_month)
-
-            if not latitude or not longitude:
-                continue
-
-            # Check if crime already exists
-            exists = db.execute(
-                text("SELECT 1 FROM crimes WHERE crime_id = :crime_id"),
-                {"crime_id": crime_id}
-            ).first()
-
-            if exists:
-                continue
-
-            # Insert crime
-            db.execute(
-                text("""
-                    INSERT INTO crimes (
-                        crime_id, category, latitude, longitude,
-                        street_name, month, location_point, created_at
-                    ) VALUES (
-                        :crime_id, :category, :latitude, :longitude,
-                        :street_name, :month,
-                        ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326),
-                        NOW()
-                    )
-                    ON CONFLICT (crime_id) DO NOTHING
-                """),
-                {
-                    "crime_id": crime_id,
-                    "category": category,
-                    "latitude": float(latitude),
-                    "longitude": float(longitude),
-                    "street_name": street_name,
-                    "month": month
-                }
-            )
-
-            stored += 1
-
-        except Exception as e:
-            print(f"  ⚠ Error processing crime {crime.get('id')}: {e}")
-            continue
-
-    db.commit()
-    return stored
-
-
-async def ingest_last_n_months(months: int = 12):
-    """
-    Ingest crime data for the last N months.
-
-    Args:
-        months: Number of months to ingest (default: 12)
+        start_year: Starting year (e.g., 2024)
+        start_month: Starting month (1-12)
+        end_year: Ending year (e.g., 2025)
+        end_month: Ending month (1-12)
     """
     print("=" * 70)
-    print(f"SafeRoute Crime Data Ingestion")
-    print(f"Fetching data for last {months} months")
+    print("SafeRoute Crime Data Ingestion")
     print("=" * 70)
-
-    # Parse Southampton bounding box
-    try:
-        bbox = [float(x.strip()) for x in settings.SOUTHAMPTON_BBOX.split(',')]
-        if len(bbox) != 4:
-            raise ValueError("SOUTHAMPTON_BBOX must have 4 values")
-    except Exception as e:
-        print(f"✗ Invalid SOUTHAMPTON_BBOX: {e}")
-        sys.exit(1)
-
-    print(f"\nBounding box: {bbox}")
-    print(f"  Min: ({bbox[0]}, {bbox[1]})")
-    print(f"  Max: ({bbox[2]}, {bbox[3]})")
-
-    # Calculate date range
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=30 * months)
-
-    print(f"\nDate range: {start_date.strftime('%Y-%m')} to {end_date.strftime('%Y-%m')}")
-    print()
 
     # Generate list of months
-    months_to_fetch = []
-    current_date = start_date.replace(day=1)
-    while current_date <= end_date:
-        months_to_fetch.append(current_date.strftime('%Y-%m'))
-        # Move to next month
-        if current_date.month == 12:
-            current_date = current_date.replace(year=current_date.year + 1, month=1)
-        else:
-            current_date = current_date.replace(month=current_date.month + 1)
+    start_date = date(start_year, start_month, 1)
+    end_date = date(end_year, end_month, 1)
 
-    total_crimes = 0
-    successful_months = 0
+    months_to_ingest = []
+    current = start_date
+    while current <= end_date:
+        months_to_ingest.append((current.year, current.month))
+        current = current + relativedelta(months=1)
 
-    # Connect to database
-    db = SessionLocal()
+    print(f"\nDate range: {start_date.strftime('%Y-%m')} to {end_date.strftime('%Y-%m')}")
+    print(f"Total months: {len(months_to_ingest)}")
+    print()
 
-    try:
-        # Verify database connection
-        db.execute(text("SELECT 1"))
-        print("✓ Database connection successful\n")
-    except Exception as e:
-        print(f"✗ Database connection failed: {e}")
-        sys.exit(1)
+    # Track statistics
+    successful = 0
+    skipped = 0
+    failed = 0
+    total_records = 0
 
-    # Fetch data for each month
-    async with httpx.AsyncClient() as client:
-        for i, year_month in enumerate(months_to_fetch, 1):
-            print(f"[{i}/{len(months_to_fetch)}] Processing {year_month}...")
+    # Ingest each month
+    for i, (year, month) in enumerate(months_to_ingest, 1):
+        month_str = f"{year}-{month:02d}"
+        print(f"[{i}/{len(months_to_ingest)}] Processing {month_str}...", end=" ")
 
-            # Fetch data
-            crimes = await fetch_crime_data_for_month(client, bbox, year_month)
+        try:
+            result = ingest_month_on_demand.apply(args=[year, month])
+            summary = result.get(timeout=120)
 
-            if crimes:
-                # Store in database
-                stored = process_and_store_crimes(db, crimes, year_month)
-                total_crimes += stored
-                successful_months += 1
-                print(f"  ✓ Stored {stored} crimes (fetched {len(crimes)})")
+            status = summary['status']
+            records = summary['records_ingested']
+
+            if status == 'success':
+                print(f"✓ {records} records")
+                successful += 1
+                total_records += records
+            elif status == 'skipped':
+                print("⊘ Already ingested")
+                skipped += 1
             else:
-                print(f"  ⚠ No crimes found")
+                print(f"⚠ {status}")
+                failed += 1
 
-            # Rate limiting - be nice to the API
-            if i < len(months_to_fetch):
-                await asyncio.sleep(1)
-
-    db.close()
+        except Exception as e:
+            print(f"✗ Error: {str(e)[:60]}")
+            failed += 1
 
     # Summary
     print()
     print("=" * 70)
-    print(f"Ingestion Complete!")
-    print(f"  Months processed: {successful_months}/{len(months_to_fetch)}")
-    print(f"  Total crimes stored: {total_crimes}")
+    print("Ingestion Summary")
+    print("=" * 70)
+    print(f"Total months processed: {len(months_to_ingest)}")
+    print(f"  ✓ Successful: {successful} ({total_records} records)")
+    print(f"  ⊘ Skipped: {skipped}")
+    print(f"  ✗ Failed: {failed}")
+    print()
+
+    # Build H3 safety grid if any data was ingested
+    if successful > 0 or total_records > 0:
+        print("=" * 70)
+        print("Building H3 Safety Grid")
+        print("=" * 70)
+
+        try:
+            # Calculate how many months of data to include
+            # Use 12 months or the range we just ingested, whichever is larger
+            months_for_grid = max(12, len(months_to_ingest))
+
+            print(f"Building grid for last {months_for_grid} months...")
+            result = rebuild_safety_grid.apply(args=[months_for_grid])
+            grid_summary = result.get(timeout=300)
+
+            print(f"\n✓ Grid built successfully!")
+            print(f"  Cells created: {grid_summary['cells_created']}")
+            print(f"  Grid type: {grid_summary['grid_type']}")
+            print(f"  H3 resolution: {grid_summary['h3_resolution']}")
+            print(f"  Cell size: ~{grid_summary['cell_size_m']}m edge")
+
+            stats = grid_summary['statistics']
+            print(f"\nStatistics:")
+            print(f"  Unique cells: {stats['unique_cells']}")
+            print(f"  Total crimes: {stats['total_crimes']}")
+            print(f"  Avg crimes/cell: {stats['avg_crimes_per_cell']}")
+            print(f"  Max crimes/cell: {stats['max_crimes_per_cell']}")
+
+        except Exception as e:
+            print(f"\n✗ Error building grid: {str(e)}")
+            print("You can manually rebuild the grid later with:")
+            print(f"  docker exec <container> python -c \"from app.tasks.ingestion_tasks import rebuild_safety_grid; rebuild_safety_grid.apply(args=[12])\"")
+
+    print()
+    print("=" * 70)
+    print("Complete!")
     print("=" * 70)
 
 
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Ingest Southampton crime data from UK Police API"
+        description="Ingest Southampton crime data from UK Police API using Celery tasks"
     )
+
+    # Option 1: Specify date range
+    parser.add_argument(
+        '--start-year',
+        type=int,
+        help='Starting year (e.g., 2024)'
+    )
+    parser.add_argument(
+        '--start-month',
+        type=int,
+        help='Starting month (1-12)'
+    )
+    parser.add_argument(
+        '--end-year',
+        type=int,
+        help='Ending year (e.g., 2025)'
+    )
+    parser.add_argument(
+        '--end-month',
+        type=int,
+        help='Ending month (1-12)'
+    )
+
+    # Option 2: Ingest last N months
     parser.add_argument(
         '--months',
         type=int,
-        default=12,
-        help='Number of months to ingest (default: 12)'
+        help='Number of months to ingest from today backwards (e.g., 12)'
     )
 
     args = parser.parse_args()
 
-    if args.months < 1 or args.months > 24:
-        print("Error: --months must be between 1 and 24")
-        sys.exit(1)
+    # Validate arguments
+    if args.months:
+        # Ingest last N months
+        if args.months < 1 or args.months > 48:
+            print("Error: --months must be between 1 and 48")
+            sys.exit(1)
 
-    # Run async function
-    asyncio.run(ingest_last_n_months(args.months))
+        end_date = date.today()
+        start_date = end_date - relativedelta(months=args.months)
+
+        ingest_date_range(
+            start_date.year,
+            start_date.month,
+            end_date.year,
+            end_date.month
+        )
+
+    elif args.start_year and args.start_month and args.end_year and args.end_month:
+        # Ingest specific date range
+        if not (1 <= args.start_month <= 12):
+            print("Error: --start-month must be between 1 and 12")
+            sys.exit(1)
+        if not (1 <= args.end_month <= 12):
+            print("Error: --end-month must be between 1 and 12")
+            sys.exit(1)
+
+        start_date = date(args.start_year, args.start_month, 1)
+        end_date = date(args.end_year, args.end_month, 1)
+
+        if start_date > end_date:
+            print("Error: start date must be before or equal to end date")
+            sys.exit(1)
+
+        ingest_date_range(
+            args.start_year,
+            args.start_month,
+            args.end_year,
+            args.end_month
+        )
+
+    else:
+        # Default: ingest last 12 months
+        print("No arguments provided, ingesting last 12 months by default")
+        print("Use --help to see all options\n")
+
+        end_date = date.today()
+        start_date = end_date - relativedelta(months=12)
+
+        ingest_date_range(
+            start_date.year,
+            start_date.month,
+            end_date.year,
+            end_date.month
+        )
 
 
 if __name__ == "__main__":
