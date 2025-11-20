@@ -34,9 +34,6 @@ export class H3GridService {
     private configService: ConfigService,
   ) {}
 
-  /**
-   * Generate H3 cell IDs covering a geographic bounding box.
-   */
   generateH3CellsForBBox(
     minLat: number,
     minLng: number,
@@ -62,9 +59,6 @@ export class H3GridService {
     return Array.from(cells);
   }
 
-  /**
-   * Get H3 cells for the Southampton area (including Airport and Hedge End).
-   */
   generateSouthamptonH3Cells(resolution: number = 10): string[] {
     const minLat = 50.87;
     const maxLat = 50.96;
@@ -74,9 +68,6 @@ export class H3GridService {
     return this.generateH3CellsForBBox(minLat, minLng, maxLat, maxLng, resolution);
   }
 
-  /**
-   * Score an H3 cell based on crimes within its boundary.
-   */
   async calculateCellSafetyScore(
     cellId: string,
     lookbackMonths: number,
@@ -131,7 +122,6 @@ export class H3GridService {
       categoryBreakdown[category] = (categoryBreakdown[category] || 0) + 1;
     }
 
-    // Piecewise risk function for H3 res 10 cells (~73m edge, ~13,781 m²)
     let riskScore: number;
     if (weightedCount === 0) {
       riskScore = 0.0;
@@ -165,9 +155,6 @@ export class H3GridService {
     };
   }
 
-  /**
-   * Generate and store H3 cells for a month, only including cells with crimes.
-   */
   async populateH3GridForMonth(
     month: Date,
     lookbackMonths: number = 12,
@@ -246,8 +233,6 @@ export class H3GridService {
       const polygonCoords = boundary.map(coord => `${coord[0]} ${coord[1]}`).join(', ');
       const polygonWKT = `POLYGON((${polygonCoords}, ${boundary[0][0]} ${boundary[0][1]}))`;
 
-      // Piecewise risk function calibrated to Southampton crime data:
-      // Thresholds match percentiles (P15, P50, P75, P90, P95) for balanced visualization
       const weightedCount = cellData.weightedCount;
       let riskScore: number;
       if (weightedCount === 0) {
@@ -302,9 +287,6 @@ export class H3GridService {
     return { processed, created: processed, updated: 0 };
   }
 
-  /**
-   * Query H3 cells that intersect a bounding box.
-   */
   async getH3CellsForBBox(
     minLat: number,
     minLng: number,
@@ -326,9 +308,6 @@ export class H3GridService {
     return query.getMany();
   }
 
-  /**
-   * Look up safety data for a location using its H3 cell.
-   */
   async getSafetyScoreAtLocation(
     lat: number,
     lng: number,

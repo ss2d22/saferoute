@@ -10,7 +10,6 @@ import { redisStore } from 'cache-manager-ioredis-yet';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const logger = new Logger('CacheModule');
-        // Read directly from process.env - don't trust ConfigService
         const password = process.env.REDIS_PASSWORD;
         const host = process.env.REDIS_HOST || 'localhost';
         const port = parseInt(process.env.REDIS_PORT || '6379', 10);

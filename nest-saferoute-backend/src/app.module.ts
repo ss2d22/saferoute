@@ -37,7 +37,6 @@ import { AdminModule } from './modules/admin/admin.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const logger = new Logger('BullModule');
-        // Read directly from process.env - don't trust ConfigService
         const password = process.env.REDIS_PASSWORD;
         const host = process.env.REDIS_HOST || 'localhost';
         const port = parseInt(process.env.REDIS_PORT || '6379', 10);

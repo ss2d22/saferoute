@@ -18,21 +18,28 @@ import { CrimeRepository } from './repositories/crime.repository';
     BullModule.registerQueueAsync({
       name: 'crime-ingestion',
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get('redis.host') || 'localhost',
-          port: configService.get('redis.port') || 6379,
-        },
-        defaultJobOptions: {
-          removeOnComplete: 100,
-          removeOnFail: 500,
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
+      useFactory: (configService: ConfigService) => {
+        const password = process.env.REDIS_PASSWORD;
+        const config: any = {
+          host: configService.get('redis.host') || process.env.REDIS_HOST || 'localhost',
+          port: configService.get('redis.port') || parseInt(process.env.REDIS_PORT || '6379', 10),
+        };
+        if (password) {
+          config.password = password;
+        }
+        return {
+          connection: config,
+          defaultJobOptions: {
+            removeOnComplete: 100,
+            removeOnFail: 500,
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 2000,
+            },
           },
-        },
-      }),
+        };
+      },
     }),
   ],
   controllers: [CrimeIngestionController],
