@@ -22,9 +22,13 @@ CMD ["npm", "run", "start:dev"]
 FROM base AS build
 
 ARG NODE_ENV
-RUN npm ci --include=dev
+ENV NODE_ENV=development
+
+RUN npm ci
 COPY . .
 RUN npm run build
+
+ENV NODE_ENV=production
 RUN npm prune --production
 
 # Production stage
