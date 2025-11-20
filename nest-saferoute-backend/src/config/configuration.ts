@@ -8,8 +8,12 @@ export default () => ({
     port: parseInt(process.env.DATABASE_PORT || '5432', 10),
     name: process.env.DATABASE_NAME || 'saferoute',
     username: process.env.DATABASE_USERNAME || 'saferoute',
-    password: process.env.DATABASE_PASSWORD || 'changeme',
-    url: process.env.DATABASE_URL ||
+    password:
+      process.env.DATABASE_PASSWORD ||
+      process.env.POSTGRES_PASSWORD ||
+      'changeme',
+    url:
+      process.env.DATABASE_URL ||
       'postgresql://saferoute:changeme@localhost:5432/saferoute',
   },
 
@@ -23,6 +27,7 @@ export default () => ({
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     db: parseInt(process.env.REDIS_DB || '0', 10),
+    password: process.env.REDIS_PASSWORD || undefined,
     url: process.env.REDIS_URL || 'redis://localhost:6379/0',
   },
 

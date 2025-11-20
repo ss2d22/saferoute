@@ -39,6 +39,7 @@ import { AdminModule } from './modules/admin/admin.module';
         connection: {
           host: configService.get('redis.host') || 'localhost',
           port: configService.get('redis.port') || 6379,
+          password: configService.get('redis.password'),
         },
       }),
       inject: [ConfigService],
