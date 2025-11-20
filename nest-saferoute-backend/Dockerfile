@@ -21,14 +21,13 @@ CMD ["npm", "run", "start:dev"]
 # Build stage
 FROM base AS build
 
-ENV NODE_ENV=development
+RUN npm ci --include=dev
 
-RUN npm ci
 COPY . .
-RUN npm run build
 
-ENV NODE_ENV=production
-RUN npm prune --production
+RUN env -u NODE_ENV npm run build
+
+RUN npm prune --omit=dev
 
 # Production stage
 FROM node:20-alpine AS production
