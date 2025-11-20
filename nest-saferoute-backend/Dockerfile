@@ -22,11 +22,10 @@ CMD ["npm", "run", "start:dev"]
 FROM base AS build
 
 ARG NODE_ENV
-# Always use development for npm ci to install devDependencies
-RUN NODE_ENV=development npm ci
+RUN npm ci --include=dev
 COPY . .
-RUN NODE_ENV=development npm run build
-RUN NODE_ENV=production npm prune --production
+RUN npm run build
+RUN npm prune --production
 
 # Production stage
 FROM node:20-alpine AS production
