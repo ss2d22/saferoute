@@ -114,106 +114,125 @@ export function Navbar() {
             {/* Mobile Menu Button */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon" className="rounded-full h-11 w-11">
-                  <Menu className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="rounded-full h-11 w-11 hover:bg-primary/10">
+                  {mobileMenuOpen ? (
+                    <X className="h-5 w-5" />
+                  ) : (
+                    <Menu className="h-5 w-5" />
+                  )}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px]">
-                <div className="flex flex-col gap-6 pt-6">
-                  {/* Logo */}
-                  <Link
-                    href="/"
-                    className="flex items-center gap-2.5 text-xl font-bold"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Shield className="h-6 w-6 text-primary" />
-                    <span>SafeRoute</span>
-                  </Link>
+              <SheetContent side="right" className="w-[85vw] max-w-sm z-[9999] p-0">
+                <div className="flex flex-col h-full">
+                  {/* Header */}
+                  <div className="p-6 border-b border-border/50">
+                    <Link
+                      href="/"
+                      className="flex items-center gap-2.5 text-xl font-bold hover:opacity-80 transition-opacity"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Shield className="h-6 w-6 text-primary" />
+                      <span className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                        SafeRoute
+                      </span>
+                    </Link>
+                  </div>
 
                   {/* Navigation Links */}
-                  <div className="flex flex-col gap-4">
+                  <nav className="flex flex-col gap-1 p-4">
                     <Link
                       href="/#product"
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-all"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Product
                     </Link>
                     <Link
                       href="/#how-it-works"
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-all"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       How It Works
                     </Link>
                     <Link
                       href="/#safety"
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-all"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Safety
                     </Link>
                     <Link
                       href="/#faq"
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg transition-all"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       FAQ
                     </Link>
-                  </div>
+                  </nav>
+
+                  {/* Spacer */}
+                  <div className="flex-1" />
 
                   {/* User Section */}
-                  {isAuthenticated ? (
-                    <div className="flex flex-col gap-3 pt-4 border-t">
-                      <Button asChild variant="default" className="w-full">
-                        <Link href="/app" onClick={() => setMobileMenuOpen(false)}>
-                          Open Map
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="w-full">
-                        <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                          <User className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="w-full">
-                        <Link href="/history" onClick={() => setMobileMenuOpen(false)}>
-                          <History className="mr-2 h-4 w-4" />
-                          History
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" className="w-full">
-                        <Link href="/settings" onClick={() => setMobileMenuOpen(false)}>
-                          <Settings className="mr-2 h-4 w-4" />
-                          Settings
-                        </Link>
-                      </Button>
-                      <Button variant="destructive" onClick={() => { handleSignOut(); setMobileMenuOpen(false); }} className="w-full">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Sign Out
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3 pt-4 border-t">
-                      <Button asChild variant="outline" className="w-full">
-                        <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>
-                          Sign In
-                        </Link>
-                      </Button>
-                      <Button asChild className="w-full">
-                        <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)}>
-                          Sign Up
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* User Email (if authenticated) */}
-                  {isAuthenticated && user?.email && (
-                    <div className="text-xs text-muted-foreground truncate pt-2 border-t">
-                      {user.email}
-                    </div>
-                  )}
+                  <div className="p-4 border-t border-border/50 bg-muted/20">
+                    {isAuthenticated ? (
+                      <div className="flex flex-col gap-2">
+                        {user?.email && (
+                          <div className="px-4 py-2 mb-2">
+                            <p className="text-xs text-muted-foreground mb-0.5">Signed in as</p>
+                            <p className="text-sm font-medium truncate">{user.email}</p>
+                          </div>
+                        )}
+                        <Button asChild variant="default" className="w-full justify-start h-11" size="lg">
+                          <Link href="/app" onClick={() => setMobileMenuOpen(false)}>
+                            <Shield className="mr-2 h-4 w-4" />
+                            Open Map
+                          </Link>
+                        </Button>
+                        <Button asChild variant="ghost" className="w-full justify-start h-11" size="lg">
+                          <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                            <User className="mr-2 h-4 w-4" />
+                            Dashboard
+                          </Link>
+                        </Button>
+                        <Button asChild variant="ghost" className="w-full justify-start h-11" size="lg">
+                          <Link href="/history" onClick={() => setMobileMenuOpen(false)}>
+                            <History className="mr-2 h-4 w-4" />
+                            Route History
+                          </Link>
+                        </Button>
+                        <Button asChild variant="ghost" className="w-full justify-start h-11" size="lg">
+                          <Link href="/settings" onClick={() => setMobileMenuOpen(false)}>
+                            <Settings className="mr-2 h-4 w-4" />
+                            Settings
+                          </Link>
+                        </Button>
+                        <div className="h-px bg-border/50 my-2" />
+                        <Button
+                          variant="ghost"
+                          onClick={() => { handleSignOut(); setMobileMenuOpen(false); }}
+                          className="w-full justify-start h-11 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          size="lg"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Sign Out
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <Button asChild variant="outline" className="w-full h-11" size="lg">
+                          <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>
+                            Sign In
+                          </Link>
+                        </Button>
+                        <Button asChild className="w-full h-11" size="lg">
+                          <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)}>
+                            Sign Up
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </SheetContent>
             </Sheet>
