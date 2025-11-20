@@ -36,11 +36,10 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [settings, setSettings] = useState<UserSettings>({
-    save_history: true,
-    default_mode: "foot-walking",
-    safety_preferences: {
-      lookback_months: 12,
-      time_of_day_sensitive: true,
+    saveHistory: true,
+    defaultMode: "foot-walking",
+    safetyPreferences: {
+      lookbackMonths: 12,
     },
   });
 
@@ -61,9 +60,8 @@ export default function SettingsPage() {
       const data = await getUserSettings();
       setSettings({
         ...data,
-        safety_preferences: data.safety_preferences || {
-          lookback_months: 12,
-          time_of_day_sensitive: true,
+        safetyPreferences: data.safetyPreferences || {
+          lookbackMonths: 12,
         },
       });
     } catch (error) {
@@ -145,8 +143,8 @@ export default function SettingsPage() {
                   <Label>Member Since</Label>
                   <Input
                     value={
-                      user?.created_at
-                        ? new Date(user.created_at).toLocaleDateString()
+                      user?.createdAt
+                        ? new Date(user.createdAt).toLocaleDateString()
                         : ""
                     }
                     disabled
@@ -178,9 +176,9 @@ export default function SettingsPage() {
                     </p>
                   </div>
                   <Switch
-                    checked={settings.save_history}
+                    checked={settings.saveHistory}
                     onCheckedChange={(checked) =>
-                      setSettings({ ...settings, save_history: checked })
+                      setSettings({ ...settings, saveHistory: checked })
                     }
                   />
                 </div>
@@ -188,9 +186,9 @@ export default function SettingsPage() {
                 <div>
                   <Label>Default Travel Mode</Label>
                   <Select
-                    value={settings.default_mode}
+                    value={settings.defaultMode}
                     onValueChange={(value: any) =>
-                      setSettings({ ...settings, default_mode: value })
+                      setSettings({ ...settings, defaultMode: value })
                     }
                   >
                     <SelectTrigger>
@@ -222,46 +220,25 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div>
                   <Label>
-                    Lookback Months: {settings.safety_preferences?.lookback_months ?? 12}
+                    Lookback Months: {settings.safetyPreferences?.lookbackMonths ?? 12}
                   </Label>
                   <p className="text-sm text-muted-foreground mb-2">
                     How many months of crime data to analyze
                   </p>
                   <Slider
-                    value={[settings.safety_preferences?.lookback_months ?? 12]}
+                    value={[settings.safetyPreferences?.lookbackMonths ?? 12]}
                     onValueChange={(value) =>
                       setSettings({
                         ...settings,
-                        safety_preferences: {
-                          ...(settings.safety_preferences || {}),
-                          lookback_months: value[0],
+                        safetyPreferences: {
+                          ...(settings.safetyPreferences || {}),
+                          lookbackMonths: value[0],
                         },
                       })
                     }
                     min={3}
                     max={24}
                     step={1}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Time-of-Day Sensitivity</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Weight crimes based on when you travel
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.safety_preferences?.time_of_day_sensitive ?? true}
-                    onCheckedChange={(checked) =>
-                      setSettings({
-                        ...settings,
-                        safety_preferences: {
-                          ...(settings.safety_preferences || {}),
-                          time_of_day_sensitive: checked,
-                        },
-                      })
-                    }
                   />
                 </div>
               </CardContent>

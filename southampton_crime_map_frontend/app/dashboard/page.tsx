@@ -32,7 +32,7 @@ export default function DashboardPage() {
   const loadHistory = async () => {
     try {
       const response = await getRouteHistory({ limit: 10 });
-      setHistory(response.items || []);
+      setHistory(response.history || []);
     } catch (error) {
       console.error("Failed to load history:", error);
       setHistory([]);
@@ -47,7 +47,7 @@ export default function DashboardPage() {
 
   const avgSafetyScore =
     history.length > 0
-      ? history.reduce((acc, item) => acc + (item.safety_score_best || 0), 0) / history.length
+      ? history.reduce((acc, item) => acc + (item.safetyScoreBest || 0), 0) / history.length
       : 0;
 
   const getRiskColor = (score: number) => {
@@ -142,7 +142,7 @@ export default function DashboardPage() {
                       key={index}
                       className="flex-1 bg-primary rounded-t"
                       style={{
-                        height: `${(item.safety_score_best / 100) * 100}%`,
+                        height: `${(item.safetyScoreBest / 100) * 100}%`,
                         opacity: 0.5 + (index / 20),
                       }}
                     />
@@ -262,24 +262,24 @@ export default function DashboardPage() {
                           </span>
                           <span
                             className={`text-sm font-medium ${getRiskColor(
-                              item.safety_score_best
+                              item.safetyScoreBest
                             )}`}
                           >
-                            {getRiskClass(item.safety_score_best)}
+                            {getRiskClass(item.safetyScoreBest)}
                           </span>
                         </div>
                         <div className="flex gap-4 text-sm text-muted-foreground">
                           <span>
-                            Safety: {item.safety_score_best.toFixed(1)}/100
+                            Safety: {item.safetyScoreBest.toFixed(1)}/100
                           </span>
                           <span>
-                            {(item.distance_m_best / 1000).toFixed(2)} km
+                            {(item.distanceMBest / 1000).toFixed(2)} km
                           </span>
-                          <span>{Math.round(item.duration_s_best / 60)} min</span>
+                          <span>{Math.round(item.durationSBest / 60)} min</span>
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {new Date(item.created_at).toLocaleDateString()}
+                        {new Date(item.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                   ))}

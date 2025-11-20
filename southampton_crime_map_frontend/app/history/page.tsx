@@ -50,7 +50,7 @@ export default function HistoryPage() {
   const loadHistory = async () => {
     try {
       const data = await getRouteHistory({ limit: 100 });
-      setHistory(data.items);
+      setHistory(data.history);
     } catch (error) {
       toast.error("Failed to load history");
     } finally {
@@ -179,9 +179,9 @@ export default function HistoryPage() {
                         </Badge>
                         <Badge
                           variant="outline"
-                          className={getRiskColor(item.safety_score_best)}
+                          className={getRiskColor(item.safetyScoreBest)}
                         >
-                          {getRiskClass(item.safety_score_best)} risk
+                          {getRiskClass(item.safetyScoreBest)} risk
                         </Badge>
                       </div>
 
@@ -191,7 +191,7 @@ export default function HistoryPage() {
                             Origin
                           </p>
                           <p className="text-sm font-mono">
-                            {item.origin.lat.toFixed(4)}, {item.origin.lng.toFixed(4)}
+                            {item.originLat.toFixed(4)}, {item.originLng.toFixed(4)}
                           </p>
                         </div>
                         <div>
@@ -199,8 +199,8 @@ export default function HistoryPage() {
                             Destination
                           </p>
                           <p className="text-sm font-mono">
-                            {item.destination.lat.toFixed(4)},{" "}
-                            {item.destination.lng.toFixed(4)}
+                            {item.destinationLat.toFixed(4)},{" "}
+                            {item.destinationLng.toFixed(4)}
                           </p>
                         </div>
                       </div>
@@ -208,22 +208,22 @@ export default function HistoryPage() {
                       <div className="flex flex-wrap gap-4 text-sm">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Calendar className="h-4 w-4" />
-                          {new Date(item.created_at).toLocaleDateString()}
+                          {new Date(item.createdAt).toLocaleDateString()}
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Clock className="h-4 w-4" />
-                          {Math.round(item.duration_s_best / 60)} min
+                          {Math.round(item.durationSBest / 60)} min
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <MapPin className="h-4 w-4" />
-                          {(item.distance_m_best / 1000).toFixed(2)} km
+                          {(item.distanceMBest / 1000).toFixed(2)} km
                         </div>
                       </div>
 
                       <div className="mt-3">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-2xl font-bold">
-                            {item.safety_score_best.toFixed(1)}
+                            {item.safetyScoreBest.toFixed(1)}
                           </span>
                           <span className="text-sm text-muted-foreground">
                             / 100 Safety Score
@@ -233,7 +233,7 @@ export default function HistoryPage() {
                           <div
                             className="h-full bg-gradient-to-r from-risk-low to-primary"
                             style={{
-                              width: `${item.safety_score_best}%`,
+                              width: `${item.safetyScoreBest}%`,
                             }}
                           />
                         </div>
@@ -243,7 +243,7 @@ export default function HistoryPage() {
                     <div className="flex gap-2 ml-4">
                       <Button size="sm" variant="outline" asChild>
                         <Link
-                          href={`/app?origin=${item.origin.lat},${item.origin.lng}&destination=${item.destination.lat},${item.destination.lng}`}
+                          href={`/app?origin=${item.originLat},${item.originLng}&destination=${item.destinationLat},${item.destinationLng}`}
                         >
                           <Map className="h-4 w-4" />
                         </Link>

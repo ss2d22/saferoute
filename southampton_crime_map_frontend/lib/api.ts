@@ -1,17 +1,20 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-// Types
+// Types - Updated to match NestJS backend camelCase format
 export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn?: number;
 }
 
 export interface User {
   id: string;
   email: string;
-  created_at: string;
+  isActive?: boolean;
+  isAdmin?: boolean;
+  createdAt: string;
 }
 
 export interface RegisterPayload {
@@ -26,18 +29,18 @@ export interface LoginPayload {
 
 export interface SafetySnapshotParams {
   bbox: string;
-  lookback_months?: number;
-  time_of_day?: "night" | "morning" | "day" | "evening";
+  lookbackMonths?: number;
+  month?: string; // Format: YYYY-MM
+  timeOfDay?: "night" | "morning" | "day" | "evening";
 }
 
 export interface SafetyCell {
-  id: string;
-  safety_score: number;
-  risk_score: number;
-  crime_count: number;
-  crime_count_weighted: number;
-  months_data: number;
-  crime_breakdown: Record<string, number>;
+  cellId: string;
+  safetyScore: number;
+  riskScore: number;
+  crimeCount: number;
+  crimeCountWeighted: number;
+  categoryBreakdown: Record<string, number>;
   geometry: {
     type: "Polygon";
     coordinates: number[][][];
@@ -46,20 +49,21 @@ export interface SafetyCell {
 
 export interface SafetySnapshotResponse {
   cells: SafetyCell[];
-  summary: {
-    total_cells: number;
-    total_crimes: number;
-    avg_safety_score: number;
-    highest_risk_cell: string;
-    lowest_risk_cell: string;
+  count: number;
+  summary?: {
+    totalCells: number;
+    totalCrimes: number;
+    avgSafetyScore: number;
+    highestRiskCell: string;
+    lowestRiskCell: string;
   };
-  meta: {
+  meta?: {
     bbox: [number, number, number, number];
-    cell_size_m: number;
-    grid_type: string;
-    lookback_months: number;
-    time_filter: string | null;
-    months_included: number;
+    cellSizeM: number;
+    gridType: string;
+    lookbackMonths: number;
+    timeFilter: string | null;
+    monthsIncluded: number;
   };
 }
 
@@ -67,37 +71,71 @@ export interface SafeRoutePayload {
   origin: { lat: number; lng: number };
   destination: { lat: number; lng: number };
   mode?: "foot-walking" | "cycling-regular";
-  departure_time?: string;
+  departureTime?: string;
   preferences?: {
-    safety_weight?: number;
-    lookback_months?: number;
-    time_of_day_sensitive?: boolean;
-    category_weights?: Record<string, number>;
+    safetyWeight?: number;
+    lookbackMonths?: number;
+    categoryWeights?: Record<string, number>;
   };
 }
 
 export interface RouteSegment {
-  segment_index: number;
-  start_point: [number, number];
-  end_point: [number, number];
-  risk_score: number;
+  segmentIndex: number;
+  startPoint: [number, number];
+  endPoint: [number, number];
+  riskScore: number;
 }
 
 export interface Hotspot {
-  segment_index: number; // Added segment_index from API response
+  segmentIndex: number;
   location: [number, number];
-  risk_level: "high" | "critical";
+  riskLevel: "high" | "critical";
   description: string;
-  risk_score: number;
+  riskScore: number;
 }
 
+export interface SegmentSafety {
+  index: number;
+  safetyScore: number;
+  riskScore: number;
+  coordinates: number[][];
+}
+
+export interface RouteOption {
+  distanceM: number;
+  durationS: number;
+  safetyScore: number;
+  geometry: {
+    type: "LineString";
+    coordinates: number[][];
+  };
+  instructions?: Array<{
+    distance: number;
+    duration?: number;
+    instruction: string;
+    name?: string;
+  }>;
+  rank: number;
+  segments?: SegmentSafety[];
+  googleMapsUrl?: string;
+}
+
+export interface SafeRouteResponse {
+  routes: RouteOption[];
+  safetyWeight: number;
+  lookbackMonths: number;
+  timeOfDay: string;
+  timestamp: string;
+}
+
+// Legacy format for backward compatibility
 export interface SafeRoute {
-  route_id: string;
-  safety_score: number;
-  risk_class: "low" | "medium" | "high";
-  is_recommended: boolean;
-  distance_m: number;
-  duration_s: number;
+  routeId: string;
+  safetyScore: number;
+  riskClass: "low" | "medium" | "high";
+  isRecommended: boolean;
+  distanceM: number;
+  durationS: number;
   geometry: {
     type: "LineString";
     coordinates: number[][];
@@ -105,48 +143,43 @@ export interface SafeRoute {
   stats: {
     segments: RouteSegment[];
     hotspots: Hotspot[];
-    crime_breakdown: Record<string, number>;
-    total_weighted_risk?: number; // Added optional fields from API
-    max_segment_risk?: number;
-    avg_segment_risk?: number;
-    segment_count?: number;
+    crimeBreakdown: Record<string, number>;
+    totalWeightedRisk?: number;
+    maxSegmentRisk?: number;
+    avgSegmentRisk?: number;
+    segmentCount?: number;
   };
   instructions?: Array<{
     distance: number;
-    duration?: number; // Made duration optional to match API
+    duration?: number;
     instruction: string;
-    name?: string; // Renamed from street_name to match API response
+    name?: string;
   }>;
 }
 
 export interface UserSettings {
-  save_history: boolean;
-  default_mode: "foot-walking" | "cycling-regular";
-  safety_preferences: {
-    lookback_months: number;
-    time_of_day_sensitive: boolean;
+  saveHistory: boolean;
+  defaultMode: "foot-walking" | "cycling-regular";
+  safetyPreferences: {
+    lookbackMonths: number;
   };
 }
 
 export interface RouteHistoryItem {
   id: string;
-  created_at: string;
-  origin: {
-    lat: number;
-    lng: number;
-  };
-  destination: {
-    lat: number;
-    lng: number;
-  };
+  createdAt: string;
+  originLat: number;
+  originLng: number;
+  destinationLat: number;
+  destinationLng: number;
   mode: string;
-  safety_score_best: number;
-  distance_m_best: number;
-  duration_s_best: number;
+  safetyScoreBest: number;
+  distanceMBest: number;
+  durationSBest: number;
 }
 
 export interface RouteHistoryResponse {
-  items: RouteHistoryItem[];
+  history: RouteHistoryItem[];
   total: number;
   limit: number;
   offset: number;
@@ -194,7 +227,7 @@ async function apiFetch(
   if (requiresAuth) {
     const tokens = getTokens();
     if (tokens) {
-      headers.set("Authorization", `Bearer ${tokens.access_token}`);
+      headers.set("Authorization", `Bearer ${tokens.accessToken}`);
     }
   }
 
@@ -208,13 +241,13 @@ async function apiFetch(
   // Try to refresh token on 401
   if (response.status === 401 && requiresAuth) {
     const tokens = getTokens();
-    if (tokens?.refresh_token) {
+    if (tokens?.refreshToken) {
       try {
-        const newTokens = await refreshToken(tokens.refresh_token);
+        const newTokens = await refreshToken(tokens.refreshToken);
         setTokens(newTokens);
 
         // Retry original request with new token
-        headers.set("Authorization", `Bearer ${newTokens.access_token}`);
+        headers.set("Authorization", `Bearer ${newTokens.accessToken}`);
         response = await fetch(url, {
           ...options,
           headers,
@@ -254,7 +287,7 @@ export async function login(payload: LoginPayload): Promise<AuthTokens> {
 export async function refreshToken(refreshToken: string): Promise<AuthTokens> {
   const response = await apiFetch("/api/v1/auth/refresh", {
     method: "POST",
-    body: JSON.stringify({ refresh_token: refreshToken }),
+    body: JSON.stringify({ refreshToken }),
   });
   return response.json();
 }
@@ -274,29 +307,88 @@ export async function getCurrentUser(): Promise<User> {
 export async function getSafetySnapshot(
   params: SafetySnapshotParams
 ): Promise<SafetySnapshotResponse> {
-  const searchParams = new URLSearchParams();
-  searchParams.set("bbox", params.bbox);
-  if (params.lookback_months)
-    searchParams.set("lookback_months", params.lookback_months.toString());
-  if (params.time_of_day) searchParams.set("time_of_day", params.time_of_day);
+  // Parse bbox: "minLat,minLng,maxLat,maxLng"
+  const bboxParts = params.bbox.split(',').map(Number);
+  const [minLat, minLng, maxLat, maxLng] = bboxParts;
 
+  const searchParams = new URLSearchParams();
+  searchParams.set("minLat", minLat.toString());
+  searchParams.set("minLng", minLng.toString());
+  searchParams.set("maxLat", maxLat.toString());
+  searchParams.set("maxLng", maxLng.toString());
+
+  // Use month parameter instead of lookback_months
+  if (params.month) {
+    searchParams.set("month", params.month);
+  }
+
+  // Call the new H3 grid endpoint
   const response = await apiFetch(
-    `/api/v1/safety/snapshot?${searchParams.toString()}`
+    `/api/v1/h3-grids/cells?${searchParams.toString()}`
   );
-  return response.json();
+
+  const data = await response.json();
+
+  // Transform NestJS response to match expected format
+  // Filter out cells with zero crimes
+  const cells: SafetyCell[] = data.cells
+    .filter((cell: any) => cell.crimeCount && cell.crimeCount > 0)
+    .map((cell: any) => ({
+      cellId: cell.cellId,
+      safetyScore: cell.stats.safetyScore,
+      riskScore: cell.stats.riskScore,
+      crimeCount: cell.crimeCount,
+      crimeCountWeighted: cell.crimeCountWeighted,
+      categoryBreakdown: cell.stats.categoryBreakdown || {},
+      geometry: cell.geometry,
+    }));
+
+  // Calculate summary statistics
+  const totalCrimes = cells.reduce((sum, cell) => sum + cell.crimeCount, 0);
+  const avgSafetyScore = cells.length > 0
+    ? cells.reduce((sum, cell) => sum + cell.safetyScore, 0) / cells.length
+    : 0;
+
+  const sortedByRisk = [...cells].sort((a, b) => b.riskScore - a.riskScore);
+  const highestRiskCell = sortedByRisk[0]?.cellId || '';
+  const lowestRiskCell = sortedByRisk[sortedByRisk.length - 1]?.cellId || '';
+
+  return {
+    cells,
+    count: data.count,
+    summary: {
+      totalCells: data.count,
+      totalCrimes,
+      avgSafetyScore,
+      highestRiskCell,
+      lowestRiskCell,
+    },
+    meta: {
+      bbox: [minLat, minLng, maxLat, maxLng],
+      cellSizeM: 73, // H3 resolution 9 average cell edge length
+      gridType: "h3",
+      lookbackMonths: params.lookbackMonths || 12,
+      timeFilter: params.timeOfDay || null,
+      monthsIncluded: 1,
+    },
+  };
 }
 
 export async function getSafeRoutes(
   payload: SafeRoutePayload
-): Promise<SafeRoute[]> {
+): Promise<RouteOption[]> {
   const tokens = getTokens();
   const requiresAuth = !!tokens; // Only add auth if user is logged in
-  
+
   const response = await apiFetch("/api/v1/routes/safe", {
     method: "POST",
     body: JSON.stringify(payload),
-  }, requiresAuth); // Pass requiresAuth flag
-  return response.json();
+  }, requiresAuth);
+
+  const data: SafeRouteResponse = await response.json();
+
+  // Return the routes array from the response
+  return data.routes;
 }
 
 // User Settings APIs
@@ -325,7 +417,7 @@ export async function getRouteHistory(params?: {
   if (params?.offset) searchParams.set("offset", params.offset.toString());
 
   const response = await apiFetch(
-    `/api/v1/users/me/history?${searchParams.toString()}`,
+    `/api/v1/routes/history?${searchParams.toString()}`,
     {},
     true
   );
@@ -333,13 +425,13 @@ export async function getRouteHistory(params?: {
 }
 
 export async function deleteRouteHistoryItem(id: string): Promise<void> {
-  await apiFetch(`/api/v1/users/me/history/${id}`, {
+  await apiFetch(`/api/v1/routes/history/${id}`, {
     method: "DELETE",
   }, true);
 }
 
 export async function deleteAllRouteHistory(): Promise<void> {
-  await apiFetch("/api/v1/users/me/history", {
+  await apiFetch("/api/v1/routes/history", {
     method: "DELETE",
   }, true);
 }

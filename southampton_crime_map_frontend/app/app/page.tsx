@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -26,10 +25,11 @@ import {
   getSafetySnapshot,
   getSafeRoutes,
   type SafetyCell,
-  type SafeRoute,
+  type RouteOption,
   type SafeRoutePayload,
   type SafetySnapshotResponse,
 } from "@/lib/api";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   MapPin,
   Navigation,
@@ -41,6 +41,7 @@ import {
   TrendingUp,
   Clock,
   ArrowRight,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -81,14 +82,14 @@ function MapPageContent() {
     lat: number;
     lng: number;
   } | null>(null);
-  const [routes, setRoutes] = useState<SafeRoute[]>([]);
-  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [safetyCells, setSafetyCells] = useState<SafetyCell[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [mobileRouteSheetOpen, setMobileRouteSheetOpen] = useState(false);
 
   // Filters
-  const [lookbackMonths, setLookbackMonths] = useState(12);
-  const [timeOfDay, setTimeOfDay] = useState<string>("all");
   const [mode, setMode] = useState<"foot-walking" | "cycling-regular">(
     "foot-walking"
   );
@@ -143,10 +144,10 @@ function MapPageContent() {
             return {
               type: "Feature" as const,
               properties: {
-                risk_score: cell.risk_score,
-                safety_score: cell.safety_score,
-                crime_count: cell.crime_count,
-                crime_breakdown: cell.crime_breakdown,
+                risk_score: cell.riskScore,
+                safety_score: cell.safetyScore,
+                crime_count: cell.crimeCount,
+                crime_breakdown: cell.categoryBreakdown,
               },
               geometry: cell.geometry,
             };
@@ -225,13 +226,12 @@ function MapPageContent() {
         return;
       }
 
-      const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+      const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
 
       try {
         const response = await getSafetySnapshot({
           bbox,
-          lookback_months: lookbackMonths,
-          time_of_day: timeOfDay !== "all" ? (timeOfDay as any) : undefined,
+          month: "2025-09", // Use September 2025 data (latest available with 12-month lookback)
         });
         setSafetyCells(response.cells);
 
@@ -240,7 +240,7 @@ function MapPageContent() {
         }
       } catch (error) {}
     },
-    [lookbackMonths, timeOfDay, showHeatmap, renderHeatmap]
+    [showHeatmap, renderHeatmap]
   );
 
   useEffect(() => {
@@ -340,10 +340,6 @@ function MapPageContent() {
         origin,
         destination,
         mode,
-        preferences: {
-          lookback_months: lookbackMonths,
-          time_of_day_sensitive: timeOfDay !== "all",
-        },
       };
 
       const response = await getSafeRoutes(payload);
@@ -353,9 +349,8 @@ function MapPageContent() {
 
       setRoutes(routesData);
       if (routesData.length > 0) {
-        const firstRouteId = routesData[0].route_id || `route-0`;
-        setSelectedRouteId(firstRouteId);
-        renderRoutes(routesData, firstRouteId);
+        setSelectedRouteId(0); // Select first route by index
+        renderRoutes(routesData, 0);
       }
 
       toast.success(
@@ -371,8 +366,15 @@ function MapPageContent() {
     }
   };
 
+  // Helper function to get color based on safety score
+  const getSafetyColor = useCallback((safetyScore: number): string => {
+    if (safetyScore < 50) return "#ef4444"; // red
+    if (safetyScore < 75) return "#eab308"; // yellow
+    return "#22c55e"; // green
+  }, []);
+
   const renderRoutes = useCallback(
-    (routes: SafeRoute[], selectedId?: string | null) => {
+    (routes: RouteOption[], selectedIdx?: number | null) => {
       const map = mapRef.current;
       if (!map || !L.current) return;
 
@@ -387,19 +389,18 @@ function MapPageContent() {
         pane.style.zIndex = "450";
       }
 
-      const currentSelectedId =
-        selectedId !== undefined ? selectedId : selectedRouteId;
+      const currentSelectedIdx =
+        selectedIdx !== undefined ? selectedIdx : selectedRouteId;
 
       routes.forEach((route, index) => {
-        const routeId = route.route_id || `route-${index}`;
-        const isSelected = routeId === currentSelectedId;
+        const isSelected = index === currentSelectedIdx;
 
         if (!isSelected) {
           const layer = L.current.geoJSON(
             {
               type: "Feature",
               properties: {
-                route_id: routeId,
+                route_index: index,
               },
               geometry: route.geometry,
             },
@@ -417,71 +418,47 @@ function MapPageContent() {
           layer.addTo(map);
           routesLayersRef.current.push(layer);
         } else {
-          const segments = route.stats?.segments || [];
-          const coordinates = route.geometry.coordinates; // Array of [lng, lat] pairs
-
-          if (segments.length > 0 && coordinates.length > 0) {
-            // Sort segments by index to ensure proper order
-            const sortedSegments = [...segments].sort(
-              (a, b) => (a.segment_index || 0) - (b.segment_index || 0)
-            );
-
-            sortedSegments.forEach((segment: any, segIdx: number) => {
-              const riskScore = segment.risk_score || 0;
-
-              let segmentColor = "#22c55e"; // green - safe
-              if (riskScore > 15) {
-                segmentColor = "#ef4444"; // red - critical risk
-              } else if (riskScore > 10) {
-                segmentColor = "#f97316"; // orange - high risk
-              } else if (riskScore > 5) {
-                segmentColor = "#eab308"; // yellow - moderate risk
-              }
-
-              // Each segment covers a portion of the route
-              const totalSegments = sortedSegments.length;
-              const coordsPerSegment = Math.ceil(
-                coordinates.length / totalSegments
-              );
-              const startIdx = segIdx * coordsPerSegment;
-              const endIdx = Math.min(
-                (segIdx + 1) * coordsPerSegment,
-                coordinates.length
-              );
-
-              // Extract coordinates for this segment
-              const segmentCoords = coordinates
-                .slice(startIdx, endIdx + 1)
-                .map((coord: number[]) => {
-                  const [lng, lat] = coord;
-                  return [lat, lng];
-                });
-
-              if (segmentCoords.length > 1) {
-                const segmentLayer = L.current.polyline(segmentCoords, {
+          // Render selected route with segment-based coloring if available
+          if (route.segments && route.segments.length > 0) {
+            // Render each segment with its own color
+            route.segments.forEach((segment: any) => {
+              const segmentColor = getSafetyColor(segment.safetyScore);
+              const layer = L.current.geoJSON(
+                {
+                  type: "Feature",
+                  properties: {
+                    route_index: index,
+                    segment_index: segment.index,
+                    safety_score: segment.safetyScore,
+                  },
+                  geometry: {
+                    type: "LineString",
+                    coordinates: segment.coordinates,
+                  },
+                },
+                {
                   pane: "routesPane",
-                  color: segmentColor,
-                  weight: 7,
-                  opacity: 0.9,
-                  lineJoin: "round",
-                  lineCap: "round",
-                });
-
-                segmentLayer.addTo(map);
-                routesLayersRef.current.push(segmentLayer);
-              }
+                  style: {
+                    color: segmentColor,
+                    weight: 7,
+                    opacity: 0.9,
+                    lineJoin: "round",
+                    lineCap: "round",
+                  },
+                }
+              );
+              layer.addTo(map);
+              routesLayersRef.current.push(layer);
             });
           } else {
-            let routeColor = "#22c55e"; // green
-            if (route.safety_score < 50) routeColor = "#ef4444"; // red
-            else if (route.safety_score < 75) routeColor = "#eab308"; // yellow
-
+            // Fallback to single-color rendering (backward compatibility)
+            const routeColor = getSafetyColor(route.safetyScore);
             const layer = L.current.geoJSON(
               {
                 type: "Feature",
                 properties: {
-                  route_id: routeId,
-                  safety_score: route.safety_score,
+                  route_index: index,
+                  safety_score: route.safetyScore,
                 },
                 geometry: route.geometry,
               },
@@ -521,15 +498,12 @@ function MapPageContent() {
   );
 
   useEffect(() => {
-    if (routes.length > 0 && selectedRouteId) {
+    if (routes.length > 0 && selectedRouteId !== null) {
       renderRoutes(routes, selectedRouteId);
     }
   }, [selectedRouteId, routes, renderRoutes]);
 
-  const selectedRoute = routes.find((r, idx) => {
-    const routeId = r.route_id || `route-${idx}`;
-    return routeId === selectedRouteId;
-  });
+  const selectedRoute = selectedRouteId !== null ? routes[selectedRouteId] : null;
 
   const getRiskBadgeColor = (riskClass: string) => {
     switch (riskClass) {
@@ -613,11 +587,11 @@ function MapPageContent() {
       <Navbar />
 
       <div className="flex-1 flex pt-16 overflow-hidden">
-        {/* Left Sidebar - Compact Controls */}
+        {/* Left Sidebar - Hidden on Mobile, Visible on Desktop */}
         <motion.div
           initial={{ x: -320 }}
           animate={{ x: 0 }}
-          className="w-80 border-r border-border/50 bg-card/30 backdrop-blur-xl overflow-y-auto"
+          className="hidden md:block w-80 border-r border-border/50 bg-card/30 backdrop-blur-xl overflow-y-auto"
         >
           <div className="p-6 space-y-6">
             {/* Route Planning Section */}
@@ -681,9 +655,9 @@ function MapPageContent() {
                       onClick={() =>
                         setPickMode(pickMode === "origin" ? "none" : "origin")
                       }
-                      className="h-9 w-9 p-0"
+                      className="h-11 w-11 p-0"
                     >
-                      <MapPin className="h-4 w-4" />
+                      <MapPin className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
@@ -715,9 +689,9 @@ function MapPageContent() {
                           pickMode === "destination" ? "none" : "destination"
                         )
                       }
-                      className="h-9 w-9 p-0"
+                      className="h-11 w-11 p-0"
                     >
-                      <MapPin className="h-4 w-4" />
+                      <MapPin className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
@@ -779,12 +753,12 @@ function MapPageContent() {
                 ) : (
                   <AnimatePresence mode="popLayout">
                     {routes.map((route, index) => {
-                      const routeId = route.route_id || `route-${index}`;
-                      const isSelected = selectedRouteId === routeId;
+                      const isSelected = selectedRouteId === index;
+                      const riskClass = route.safetyScore >= 75 ? "low" : route.safetyScore >= 50 ? "medium" : "high";
 
                       return (
                         <motion.div
-                          key={routeId}
+                          key={index}
                           layout
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
@@ -797,9 +771,9 @@ function MapPageContent() {
                                 ? "ring-2 ring-primary shadow-lg border-primary/50"
                                 : "border-border/50"
                             }`}
-                            onClick={() => setSelectedRouteId(routeId)}
+                            onClick={() => setSelectedRouteId(index)}
                           >
-                            {route.is_recommended && (
+                            {route.rank === 1 && (
                               <Badge className="mb-2 text-xs px-2 py-0.5">
                                 Recommended
                               </Badge>
@@ -808,7 +782,7 @@ function MapPageContent() {
                               <div>
                                 <div className="flex items-baseline gap-1">
                                   <p className="font-bold text-3xl">
-                                    {route.safety_score.toFixed(1)}
+                                    {route.safetyScore.toFixed(1)}
                                   </p>
                                   <span className="text-sm text-muted-foreground">
                                     /100
@@ -821,20 +795,20 @@ function MapPageContent() {
                               <Badge
                                 variant="outline"
                                 className={`${getRiskBadgeColor(
-                                  route.risk_class
+                                  riskClass
                                 )} text-xs px-2`}
                               >
-                                {route.risk_class}
+                                {riskClass}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-4 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <TrendingUp className="h-3 w-3" />
-                                {(route.distance_m / 1000).toFixed(1)} km
+                                {(route.distanceM / 1000).toFixed(1)} km
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {Math.round(route.duration_s / 60)} min
+                                {Math.round(route.durationS / 60)} min
                               </span>
                             </div>
                           </Card>
@@ -856,49 +830,6 @@ function MapPageContent() {
                     onCheckedChange={setShowHeatmap}
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Data Period: {lookbackMonths} months
-                  </Label>
-                  <Slider
-                    value={[lookbackMonths]}
-                    onValueChange={(v) => setLookbackMonths(v[0])}
-                    min={3}
-                    max={24}
-                    step={1}
-                    className="py-2"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Time of Day
-                  </Label>
-                  <Select value={timeOfDay} onValueChange={setTimeOfDay}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Day</SelectItem>
-                      <SelectItem value="night">Night</SelectItem>
-                      <SelectItem value="morning">Morning</SelectItem>
-                      <SelectItem value="day">Day</SelectItem>
-                      <SelectItem value="evening">Evening</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full h-9"
-                  onClick={() =>
-                    mapRef.current &&
-                    loadSafetyHeatmap(mapRef.current.getBounds())
-                  }
-                >
-                  Refresh Data
-                </Button>
 
                 {/* Legend */}
                 <Card className="p-4 bg-muted/20 border-border/30">
@@ -954,7 +885,7 @@ function MapPageContent() {
           </AnimatePresence>
         </div>
 
-        {/* Right Sidebar - Route Details */}
+        {/* Right Sidebar - Route Details (Hidden on Mobile) */}
         <AnimatePresence mode="wait">
           {selectedRoute && (
             <motion.div
@@ -963,7 +894,7 @@ function MapPageContent() {
               animate={{ x: 0 }}
               exit={{ x: 384 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="w-96 border-l border-border/50 bg-card/30 backdrop-blur-xl overflow-y-auto"
+              className="hidden lg:block w-96 border-l border-border/50 bg-card/30 backdrop-blur-xl overflow-y-auto"
             >
               <div className="p-6 space-y-6">
                 {/* Header */}
@@ -972,7 +903,7 @@ function MapPageContent() {
                     <div className="h-8 w-1 bg-primary rounded-full" />
                     <h3 className="text-lg font-bold">Route Details</h3>
                   </div>
-                  {selectedRoute.is_recommended && (
+                  {selectedRoute.rank === 1 && (
                     <Badge className="mb-4">Recommended Route</Badge>
                   )}
                 </div>
@@ -983,7 +914,7 @@ function MapPageContent() {
                     <div>
                       <div className="flex items-baseline gap-1">
                         <p className="text-4xl font-bold">
-                          {selectedRoute.safety_score.toFixed(1)}
+                          {selectedRoute.safetyScore.toFixed(1)}
                         </p>
                         <span className="text-lg text-muted-foreground">
                           /100
@@ -996,10 +927,10 @@ function MapPageContent() {
                     <Badge
                       variant="outline"
                       className={`${getRiskBadgeColor(
-                        selectedRoute.risk_class
+                        selectedRoute.safetyScore >= 75 ? "low" : selectedRoute.safetyScore >= 50 ? "medium" : "high"
                       )} px-3 py-1`}
                     >
-                      {selectedRoute.risk_class} risk
+                      {selectedRoute.safetyScore >= 75 ? "low" : selectedRoute.safetyScore >= 50 ? "medium" : "high"} risk
                     </Badge>
                   </div>
 
@@ -1007,7 +938,7 @@ function MapPageContent() {
                   <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${selectedRoute.safety_score}%` }}
+                      animate={{ width: `${selectedRoute.safetyScore}%` }}
                       transition={{ duration: 0.8, ease: "easeOut" }}
                       className="h-full bg-gradient-to-r from-risk-low via-risk-medium to-risk-high"
                     />
@@ -1020,65 +951,32 @@ function MapPageContent() {
                     <TrendingUp className="h-4 w-4 text-muted-foreground mb-2" />
                     <p className="text-xs text-muted-foreground">Distance</p>
                     <p className="text-xl font-bold">
-                      {(selectedRoute.distance_m / 1000).toFixed(2)} km
+                      {(selectedRoute.distanceM / 1000).toFixed(2)} km
                     </p>
                   </Card>
                   <Card className="p-4 border-border/30">
                     <Clock className="h-4 w-4 text-muted-foreground mb-2" />
                     <p className="text-xs text-muted-foreground">Duration</p>
                     <p className="text-xl font-bold">
-                      {Math.round(selectedRoute.duration_s / 60)} min
+                      {Math.round(selectedRoute.durationS / 60)} min
                     </p>
                   </Card>
                 </div>
 
-                {/* Hotspots - Condensed View */}
-                {selectedRoute.stats.hotspots.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="h-4 w-4 text-destructive" />
-                      <h4 className="font-semibold text-sm">
-                        {selectedRoute.stats.hotspots.length} Risk{" "}
-                        {selectedRoute.stats.hotspots.length === 1
-                          ? "Area"
-                          : "Areas"}
-                      </h4>
-                    </div>
-
-                    <div className="space-y-2">
-                      {selectedRoute.stats.hotspots
-                        .slice(0, 3)
-                        .map((hotspot, index) => (
-                          <Card
-                            key={index}
-                            className="p-3 border-l-4 border-destructive/50 bg-destructive/5"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium capitalize">
-                                  {hotspot.risk_level} Risk
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                                  {hotspot.description}
-                                </p>
-                              </div>
-                              <Badge
-                                variant="outline"
-                                className="text-xs ml-2 flex-shrink-0"
-                              >
-                                {hotspot.risk_score.toFixed(1)}
-                              </Badge>
-                            </div>
-                          </Card>
-                        ))}
-
-                      {selectedRoute.stats.hotspots.length > 3 && (
-                        <p className="text-xs text-center text-muted-foreground py-2">
-                          + {selectedRoute.stats.hotspots.length - 3} more risk
-                          areas
-                        </p>
-                      )}
-                    </div>
+                {/* Map Export Button */}
+                {selectedRoute.googleMapsUrl && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Open in Google Maps
+                    </Label>
+                    <Button
+                      variant="outline"
+                      className="w-full h-10"
+                      onClick={() => window.open(selectedRoute.googleMapsUrl, '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Open Route in Google Maps
+                    </Button>
                   </div>
                 )}
 
@@ -1123,6 +1021,305 @@ function MapPageContent() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Mobile Floating Action Buttons */}
+        <div className="md:hidden fixed bottom-4 right-4 flex flex-col gap-3 z-[500]">
+          {/* Route Planning Button */}
+          <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+            <SheetTrigger asChild>
+              <Button size="lg" className="rounded-full shadow-lg h-14 w-14">
+                <Navigation className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
+              <SheetHeader>
+                <SheetTitle>Plan Your Route</SheetTitle>
+              </SheetHeader>
+              <div className="overflow-y-auto h-full pb-6 pt-4">
+                {/* Route Planning Controls */}
+                <div className="space-y-6">
+                  {!isAuthenticated && (
+                    <Card className="p-3 bg-primary/5 border-primary/20">
+                      <p className="text-xs flex items-center gap-2">
+                        <Info className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span>Sign in to save routes to history</span>
+                      </p>
+                    </Card>
+                  )}
+
+                  {/* Origin/Destination */}
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Origin</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Click map to set"
+                          value={
+                            origin
+                              ? `${origin.lat.toFixed(4)}, ${origin.lng.toFixed(4)}`
+                              : ""
+                          }
+                          readOnly
+                          className="flex-1"
+                        />
+                        <Button
+                          size="icon"
+                          variant={pickMode === "origin" ? "default" : "outline"}
+                          onClick={() => {
+                            setPickMode(pickMode === "origin" ? "none" : "origin");
+                            setMobileSheetOpen(false);
+                          }}
+                        >
+                          <MapPin className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Destination</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Click map to set"
+                          value={
+                            destination
+                              ? `${destination.lat.toFixed(4)}, ${destination.lng.toFixed(4)}`
+                              : ""
+                          }
+                          readOnly
+                          className="flex-1"
+                        />
+                        <Button
+                          size="icon"
+                          variant={pickMode === "destination" ? "default" : "outline"}
+                          onClick={() => {
+                            setPickMode(pickMode === "destination" ? "none" : "destination");
+                            setMobileSheetOpen(false);
+                          }}
+                        >
+                          <MapPin className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Travel Mode */}
+                  <div className="space-y-2">
+                    <Label>Travel Mode</Label>
+                    <Select value={mode} onValueChange={(v: any) => setMode(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="foot-walking">Walking</SelectItem>
+                        <SelectItem value="cycling-regular">Cycling</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Find Routes Button */}
+                  <Button
+                    onClick={() => {
+                      findSafeRoutes();
+                      setMobileSheetOpen(false);
+                    }}
+                    disabled={!origin || !destination || loading}
+                    className="w-full h-12"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Finding Routes...
+                      </>
+                    ) : (
+                      <>
+                        <Navigation className="mr-2 h-4 w-4" />
+                        Find Safe Routes
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Routes List */}
+                  {routes.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-semibold">Routes Found</h3>
+                      {routes.map((route, index) => {
+                        const isSelected = selectedRouteId === index;
+                        const riskClass = route.safetyScore >= 75 ? "low" : route.safetyScore >= 50 ? "medium" : "high";
+
+                        return (
+                          <Card
+                            key={index}
+                            className={`p-4 cursor-pointer transition-all ${
+                              isSelected
+                                ? "ring-2 ring-primary shadow-lg border-primary/50"
+                                : "border-border/50"
+                            }`}
+                            onClick={() => {
+                              setSelectedRouteId(index);
+                              setMobileRouteSheetOpen(true);
+                            }}
+                          >
+                            {route.rank === 1 && (
+                              <Badge className="mb-2 text-xs">Recommended</Badge>
+                            )}
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <div className="flex items-baseline gap-1">
+                                  <p className="font-bold text-2xl">
+                                    {route.safetyScore.toFixed(1)}
+                                  </p>
+                                  <span className="text-sm text-muted-foreground">/100</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Safety Score</p>
+                              </div>
+                              <Badge variant="outline" className={getRiskBadgeColor(riskClass)}>
+                                {riskClass}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" />
+                                {(route.distanceM / 1000).toFixed(1)} km
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {Math.round(route.durationS / 60)} min
+                              </span>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* Heatmap Toggle Button */}
+          <Button
+            size="lg"
+            variant={showHeatmap ? "default" : "outline"}
+            className="rounded-full shadow-lg h-14 w-14"
+            onClick={() => setShowHeatmap(!showHeatmap)}
+          >
+            <Layers className="h-6 w-6" />
+          </Button>
+        </div>
+
+        {/* Mobile Route Details Sheet */}
+        {selectedRoute && (
+          <Sheet open={mobileRouteSheetOpen} onOpenChange={setMobileRouteSheetOpen}>
+            <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl lg:hidden">
+              <SheetHeader>
+                <SheetTitle>Route Details</SheetTitle>
+              </SheetHeader>
+              <div className="overflow-y-auto h-full pb-6 pt-4 space-y-6">
+                {selectedRoute.rank === 1 && (
+                  <Badge>Recommended Route</Badge>
+                )}
+
+                {/* Safety Score Card */}
+                <Card className="p-5 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="flex items-baseline gap-1">
+                        <p className="text-4xl font-bold">
+                          {selectedRoute.safetyScore.toFixed(1)}
+                        </p>
+                        <span className="text-lg text-muted-foreground">/100</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">Safety Score</p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={getRiskBadgeColor(
+                        selectedRoute.safetyScore >= 75 ? "low" : selectedRoute.safetyScore >= 50 ? "medium" : "high"
+                      )}
+                    >
+                      {selectedRoute.safetyScore >= 75 ? "low" : selectedRoute.safetyScore >= 50 ? "medium" : "high"} risk
+                    </Badge>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${selectedRoute.safetyScore}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      className="h-full bg-gradient-to-r from-risk-low via-risk-medium to-risk-high"
+                    />
+                  </div>
+                </Card>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="p-4 border-border/30">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Distance</p>
+                    <p className="text-xl font-bold">
+                      {(selectedRoute.distanceM / 1000).toFixed(2)} km
+                    </p>
+                  </Card>
+                  <Card className="p-4 border-border/30">
+                    <Clock className="h-4 w-4 text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Duration</p>
+                    <p className="text-xl font-bold">
+                      {Math.round(selectedRoute.durationS / 60)} min
+                    </p>
+                  </Card>
+                </div>
+
+                {/* Map Export Button */}
+                {selectedRoute.googleMapsUrl && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Open in Google Maps
+                    </Label>
+                    <Button
+                      variant="outline"
+                      className="w-full h-10"
+                      onClick={() => window.open(selectedRoute.googleMapsUrl, '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Open Route in Google Maps
+                    </Button>
+                  </div>
+                )}
+
+                {/* Turn-by-Turn */}
+                {selectedRoute.instructions && selectedRoute.instructions.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-sm mb-3">Turn-by-Turn Directions</h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {selectedRoute.instructions.map((instruction: any, index: any) => (
+                        <div
+                          key={index}
+                          className="flex gap-3 text-sm p-2 rounded-lg bg-muted/30"
+                        >
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-xs">{instruction.instruction}</p>
+                            {instruction.name && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {instruction.name}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground flex-shrink-0">
+                            {instruction.distance}m
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
     </div>
   );

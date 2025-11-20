@@ -1,0 +1,100 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-saferoute}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-saferoute}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME:-saferoute}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - saferoute-network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - saferoute-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-8000}
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-saferoute}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-saferoute}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_URL: postgresql://${DATABASE_USERNAME:-saferoute}:${DATABASE_PASSWORD}@db:5432/${DATABASE_NAME:-saferoute}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-15m}
+      JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-30d}
+      ORS_API_KEY: ${ORS_API_KEY}
+      ORS_API_URL: ${ORS_API_URL:-https://api.openrouteservice.org}
+      POLICE_API_BASE_URL: ${POLICE_API_BASE_URL:-https://data.police.uk/api}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      RATE_LIMIT_AUTH_PER_MINUTE: ${RATE_LIMIT_AUTH_PER_MINUTE:-5}
+      DEFAULT_LOOKBACK_MONTHS: ${DEFAULT_LOOKBACK_MONTHS:-12}
+      DEFAULT_SAFETY_WEIGHT: ${DEFAULT_SAFETY_WEIGHT:-0.8}
+      DEFAULT_ROUTE_BUFFER_M: ${DEFAULT_ROUTE_BUFFER_M:-50}
+      MAX_ROUTE_DISTANCE_KM: ${MAX_ROUTE_DISTANCE_KM:-100}
+      GRID_CELL_SIZE_M: ${GRID_CELL_SIZE_M:-73}
+      GRID_TYPE: ${GRID_TYPE:-h3_hexagonal}
+      H3_RESOLUTION: ${H3_RESOLUTION:-10}
+      SOUTHAMPTON_BBOX: ${SOUTHAMPTON_BBOX:-50.85,-1.55,51.0,-1.3}
+      DEFAULT_HISTORY_RETENTION_DAYS: ${DEFAULT_HISTORY_RETENTION_DAYS:-90}
+      MAX_HISTORY_RETENTION_DAYS: ${MAX_HISTORY_RETENTION_DAYS:-365}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - saferoute-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  saferoute-network:
+    driver: bridge

@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: saferoute
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: saferoute
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U saferoute']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - saferoute-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - saferoute-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - '8000:8000'
+    environment:
+      - NODE_ENV=development
+      - PORT=8000
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=saferoute
+      - DATABASE_USERNAME=saferoute
+      - DATABASE_PASSWORD=changeme
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - JWT_SECRET=development-secret-key-change-in-production
+      - LOG_LEVEL=info
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run start:dev
+    networks:
+      - saferoute-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres_data:
+
+networks:
+  saferoute-network:
+    driver: bridge
