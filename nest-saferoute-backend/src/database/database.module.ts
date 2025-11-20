@@ -14,7 +14,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         password: configService.get('database.password'),
         database: configService.get('database.name'),
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-        synchronize: configService.get('node_env') === 'development', // Never use in production!
+        synchronize: true,
         logging: configService.get('node_env') === 'development',
         autoLoadEntities: true,
         // PostGIS support
