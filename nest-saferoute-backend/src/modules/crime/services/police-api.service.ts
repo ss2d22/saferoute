@@ -105,14 +105,23 @@ export class PoliceAPIService {
         }
 
         this.logger.error(
-          `API error ${statusCode || 'unknown'}: ${error.message}`,
+          `Police API error (attempt ${attempt + 1}/${this.maxRetries}):`,
         );
+        this.logger.error(`Status: ${statusCode || 'unknown'}`);
+        this.logger.error(`Message: ${error.message}`);
+        this.logger.error(`URL: ${url}`);
+        this.logger.error(`Params:`, params);
+        if (error.response?.data) {
+          this.logger.error(`Response data:`, error.response.data);
+        }
 
         if (attempt < this.maxRetries - 1) {
+          this.logger.log(`Retrying in ${this.retryDelays[attempt]}ms...`);
           await this.delay(this.retryDelays[attempt]);
           continue;
         }
 
+        this.logger.error(`All retry attempts exhausted for ${dateStr}`);
         return { crimes: [], statusCode: statusCode || 500 };
       }
     }

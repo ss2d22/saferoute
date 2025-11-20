@@ -51,6 +51,9 @@ export class CrimeIngestionProcessor extends WorkerHost {
       );
 
       if (crimes.length === 0) {
+        this.logger.warn(
+          `Job ${job.id}: No crimes returned from Police API for ${monthDate.toISOString().substring(0, 7)}`,
+        );
         return { crimesIngested: 0 };
       }
 
@@ -149,9 +152,18 @@ export class CrimeIngestionProcessor extends WorkerHost {
       };
     } catch (error: any) {
       this.logger.error(
-        `Error processing job ${job.id}: ${error.message}`,
-        error.stack,
+        `Error processing job ${job.id} for month ${monthDate.toISOString().substring(0, 7)}`,
       );
+      this.logger.error(`Error message: ${error.message}`);
+      this.logger.error(`Error details:`, {
+        month: monthDate.toISOString().substring(0, 7),
+        category,
+        polygonPoints: polygon.length,
+        errorCode: error.code,
+        errorResponse: error.response?.data,
+        errorStatus: error.response?.status,
+      });
+      this.logger.error(`Stack trace: ${error.stack}`);
       throw error; // This will trigger retry logic
     }
   }
@@ -163,7 +175,19 @@ export class CrimeIngestionProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, error: Error) {
-    this.logger.error(`Job ${job.id} failed: ${error.message}`);
+    const { month, category, polygon } = job.data;
+    const monthDate = new Date(month);
+
+    this.logger.error(`Job ${job.id} FAILED`);
+    this.logger.error(`Job details:`, {
+      month: monthDate.toISOString().substring(0, 7),
+      category,
+      polygonPoints: polygon?.length || 0,
+      attemptsMade: job.attemptsMade,
+      failedReason: error.message,
+      errorName: error.name,
+    });
+    this.logger.error(`Full error: ${error.stack || error.message}`);
   }
 
   @OnWorkerEvent('active')
