@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
@@ -36,16 +36,23 @@ import { AdminModule } from './modules/admin/admin.module';
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        // Read directly from process.env as fallback
-        const password = configService.get('redis.password') || process.env.REDIS_PASSWORD;
-        const config: any = {
-          host: configService.get('redis.host') || process.env.REDIS_HOST || 'localhost',
-          port: configService.get('redis.port') || parseInt(process.env.REDIS_PORT || '6379', 10),
-        };
+        const logger = new Logger('BullModule');
+        // Read directly from process.env - don't trust ConfigService
+        const password = process.env.REDIS_PASSWORD;
+        const host = process.env.REDIS_HOST || 'localhost';
+        const port = parseInt(process.env.REDIS_PORT || '6379', 10);
+
+        logger.log(`Redis config - host: ${host}, port: ${port}, password: ${password ? '***SET***' : 'MISSING'}`);
+        logger.log(`ENV check: REDIS_PASSWORD=${process.env.REDIS_PASSWORD ? 'EXISTS' : 'UNDEFINED'}`);
+
+        const config: any = { host, port };
         if (password) {
           config.password = password;
+          logger.log('Password added to BullMQ connection config');
+        } else {
+          logger.error('NO PASSWORD - BullMQ will fail to authenticate!');
         }
-        console.log('[BullMQ] Redis connection config:', { ...config, password: password ? '***' : 'none' });
+
         return { connection: config };
       },
       inject: [ConfigService],
