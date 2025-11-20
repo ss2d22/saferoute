@@ -9,16 +9,18 @@ import { redisStore } from 'cache-manager-ioredis-yet';
     NestCacheModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
-        const password = configService.get('redis.password');
+        // Read directly from process.env as fallback
+        const password = configService.get('redis.password') || process.env.REDIS_PASSWORD;
         const redisConfig: any = {
-          host: configService.get('redis.host'),
-          port: configService.get('redis.port'),
-          db: configService.get('redis.db'),
+          host: configService.get('redis.host') || process.env.REDIS_HOST || 'localhost',
+          port: configService.get('redis.port') || parseInt(process.env.REDIS_PORT || '6379', 10),
+          db: configService.get('redis.db') || parseInt(process.env.REDIS_DB || '0', 10),
           ttl: 3600 * 1000, // 1 hour in milliseconds
         };
         if (password) {
           redisConfig.password = password;
         }
+        console.log('[Cache] Redis connection config:', { ...redisConfig, password: password ? '***' : 'none' });
         return {
           store: await redisStore(redisConfig),
         };

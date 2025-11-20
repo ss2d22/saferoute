@@ -36,14 +36,17 @@ import { AdminModule } from './modules/admin/admin.module';
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const password = configService.get('redis.password');
-        return {
-          connection: {
-            host: configService.get('redis.host') || 'localhost',
-            port: configService.get('redis.port') || 6379,
-            ...(password && { password }),
-          },
+        // Read directly from process.env as fallback
+        const password = configService.get('redis.password') || process.env.REDIS_PASSWORD;
+        const config: any = {
+          host: configService.get('redis.host') || process.env.REDIS_HOST || 'localhost',
+          port: configService.get('redis.port') || parseInt(process.env.REDIS_PORT || '6379', 10),
         };
+        if (password) {
+          config.password = password;
+        }
+        console.log('[BullMQ] Redis connection config:', { ...config, password: password ? '***' : 'none' });
+        return { connection: config };
       },
       inject: [ConfigService],
     }),
