@@ -20,11 +20,14 @@ CMD ["npm", "run", "start:dev"]
 
 # Build stage
 FROM base AS build
-ENV NODE_ENV=development
-RUN npm ci
+
+# Accept NODE_ENV as build arg but ignore it for npm ci
+ARG NODE_ENV
+# Always use development for npm ci to install devDependencies
+RUN NODE_ENV=development npm ci
 COPY . .
 RUN npm run build
-ENV NODE_ENV=production
+# Now switch to production for pruning
 RUN npm prune --production
 
 # Production stage
