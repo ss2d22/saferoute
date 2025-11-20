@@ -82,9 +82,6 @@ export class PoliceAPIService {
 
         if (response.status === 200) {
           const crimes = response.data;
-          this.logger.log(
-            `Fetched ${crimes.length} crimes for ${dateStr} (attempt ${attempt + 1}/${this.maxRetries})`,
-          );
           return { crimes, statusCode: 200 };
         }
       } catch (error) {
@@ -92,36 +89,20 @@ export class PoliceAPIService {
 
         if (statusCode === 503) {
           // Too many results (>10k crimes)
-          this.logger.warn(
-            `503 response - too many crimes for ${dateStr}. Polygon needs splitting.`,
-          );
           return { crimes: [], statusCode: 503 };
         }
 
         if (statusCode === 404) {
           // No data available for this month
-          this.logger.log(`No crime data available for ${dateStr}`);
           return { crimes: [], statusCode: 404 };
         }
 
-        this.logger.error(
-          `Police API error (attempt ${attempt + 1}/${this.maxRetries}):`,
-        );
-        this.logger.error(`Status: ${statusCode || 'unknown'}`);
-        this.logger.error(`Message: ${error.message}`);
-        this.logger.error(`URL: ${url}`);
-        this.logger.error(`Params:`, params);
-        if (error.response?.data) {
-          this.logger.error(`Response data:`, error.response.data);
-        }
-
         if (attempt < this.maxRetries - 1) {
-          this.logger.log(`Retrying in ${this.retryDelays[attempt]}ms...`);
           await this.delay(this.retryDelays[attempt]);
           continue;
         }
 
-        this.logger.error(`All retry attempts exhausted for ${dateStr}`);
+        this.logger.error(`API error ${dateStr}: ${statusCode || 'unknown'} - ${error.message}`);
         return { crimes: [], statusCode: statusCode || 500 };
       }
     }

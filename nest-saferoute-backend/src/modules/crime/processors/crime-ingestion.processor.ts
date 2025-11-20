@@ -9,14 +9,16 @@ import { PoliceAPIService } from '../services/police-api.service';
 import { CrimeIngestionJobData } from '../services/crime-ingestion.service';
 
 @Processor('crime-ingestion', {
-  concurrency: 10, // Process 10 jobs concurrently
+  concurrency: 5, // Process 5 jobs concurrently for conservative rate limiting
   limiter: {
-    max: 300, // Max 300 jobs per duration (allows 10 req/s average with burst capacity)
-    duration: 30000, // 30 seconds (Police API allows 15 req/s with burst of 30)
+    max: 200, // Max 200 jobs per 30s = 6.67 jobs/s (well under 15 req/s limit)
+    duration: 30000, // 30 seconds
   },
 })
 export class CrimeIngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(CrimeIngestionProcessor.name);
+  private processedCount = 0;
+  private totalCrimes = 0;
 
   constructor(
     private policeAPIService: PoliceAPIService,
@@ -26,23 +28,15 @@ export class CrimeIngestionProcessor extends WorkerHost {
     private categoryRepository: Repository<CrimeCategory>,
   ) {
     super();
-    this.logger.log('CrimeIngestionProcessor instantiated successfully');
-    this.logger.log(`Processor configured with concurrency: 10, rate limit: 300 jobs/30s`);
+    this.logger.log('CrimeIngestionProcessor ready (concurrency: 5, rate: 6.67 jobs/s)');
   }
 
   async process(job: Job<CrimeIngestionJobData>): Promise<any> {
-    this.logger.log(`Starting to process job ${job.id}`);
-
     // Declare variables outside try block for catch block access
     const { month, category, polygon } = job.data;
     const monthDate = new Date(month);
 
     try {
-      this.logger.log(`Job ${job.id} data extracted: month=${month}, category=${category}, polygon points=${polygon?.length || 0}`);
-
-      this.logger.log(
-        `Processing job ${job.id}: ${monthDate.toISOString().substring(0, 7)} for cell`,
-      );
       // Fetch crimes from Police API with automatic splitting if needed
       const crimes = await this.policeAPIService.getCrimesWithSplit(
         polygon,
@@ -50,14 +44,7 @@ export class CrimeIngestionProcessor extends WorkerHost {
         3, // Max depth for polygon splitting
       );
 
-      this.logger.log(
-        `Fetched ${crimes.length} crimes for ${monthDate.toISOString().substring(0, 7)}`,
-      );
-
       if (crimes.length === 0) {
-        this.logger.warn(
-          `Job ${job.id}: No crimes returned from Police API for ${monthDate.toISOString().substring(0, 7)}`,
-        );
         return { crimesIngested: 0 };
       }
 
@@ -83,9 +70,6 @@ export class CrimeIngestionProcessor extends WorkerHost {
         const categoryId = normalized.category;
 
         if (!categoryId || !categoryMap.has(categoryId)) {
-          this.logger.warn(
-            `Unknown category: ${normalized.category}, skipping crime`,
-          );
           continue;
         }
 
@@ -144,10 +128,15 @@ export class CrimeIngestionProcessor extends WorkerHost {
             throw error;
           }
         }
+      }
 
-        this.logger.log(
-          `Ingested ${crimeData.length} crimes for ${monthDate.toISOString().substring(0, 7)}`,
-        );
+      // Track progress
+      this.processedCount++;
+      this.totalCrimes += crimeData.length;
+
+      // Log progress every 10 jobs
+      if (this.processedCount % 10 === 0) {
+        this.logger.log(`Progress: ${this.processedCount} cells processed, ${this.totalCrimes} crimes ingested`);
       }
 
       return {
@@ -156,48 +145,26 @@ export class CrimeIngestionProcessor extends WorkerHost {
       };
     } catch (error: any) {
       this.logger.error(
-        `Error processing job ${job.id} for month ${monthDate.toISOString().substring(0, 7)}`,
+        `Error: ${monthDate.toISOString().substring(0, 7)} - ${error.message}`,
       );
-      this.logger.error(`Error message: ${error.message}`);
-      this.logger.error(`Error details:`, {
-        month: monthDate.toISOString().substring(0, 7),
-        category,
-        polygonPoints: polygon.length,
-        errorCode: error.code,
-        errorResponse: error.response?.data,
-        errorStatus: error.response?.status,
-      });
-      this.logger.error(`Stack trace: ${error.stack}`);
       throw error; // This will trigger retry logic
     }
   }
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job) {
-    this.logger.debug(`Job ${job.id} completed successfully`);
+    // Silent - only log progress every N jobs in process()
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, error: Error) {
-    const { month, category, polygon } = job.data;
+    const { month } = job.data;
     const monthDate = new Date(month);
-
-    this.logger.error(`Job ${job.id} FAILED`);
-    this.logger.error(`Job details:`, {
-      month: monthDate.toISOString().substring(0, 7),
-      category,
-      polygonPoints: polygon?.length || 0,
-      attemptsMade: job.attemptsMade,
-      failedReason: error.message,
-      errorName: error.name,
-    });
-    this.logger.error(`Full error: ${error.stack || error.message}`);
+    this.logger.error(`FAILED: ${monthDate.toISOString().substring(0, 7)} after ${job.attemptsMade} attempts - ${error.message}`);
   }
 
   @OnWorkerEvent('active')
   onActive(job: Job) {
-    const { month } = job.data;
-    const monthDate = new Date(month);
-    this.logger.log(`Job ${job.id} is now ACTIVE - processing ${monthDate.toISOString().substring(0, 7)}`);
+    // Silent - reduce log noise
   }
 }
