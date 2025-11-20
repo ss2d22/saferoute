@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { DatabaseSeedService } from './database-seed.service';
+import { CrimeCategory } from '../modules/crime/entities/crime-category.entity';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
       inject: [ConfigService],
     }),
+    TypeOrmModule.forFeature([CrimeCategory]),
   ],
+  providers: [DatabaseSeedService],
 })
 export class DatabaseModule {}

@@ -10,7 +10,7 @@ async function seedCategories() {
     host: process.env.DATABASE_HOST || 'localhost',
     port: parseInt(process.env.DATABASE_PORT || '5432'),
     username: process.env.DATABASE_USERNAME || 'saferoute',
-    password: process.env.DATABASE_PASSWORD || 'changeme',
+    password: process.env.DATABASE_PASSWORD || process.env.POSTGRES_PASSWORD || 'changeme',
     database: process.env.DATABASE_NAME || 'saferoute',
   });
 
