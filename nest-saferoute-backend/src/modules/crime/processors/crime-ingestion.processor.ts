@@ -33,12 +33,12 @@ export class CrimeIngestionProcessor extends WorkerHost {
   async process(job: Job<CrimeIngestionJobData>): Promise<any> {
     this.logger.log(`Starting to process job ${job.id}`);
 
-    try {
-      const { month, category, polygon } = job.data;
-      this.logger.log(`Job ${job.id} data extracted: month=${month}, category=${category}, polygon points=${polygon?.length || 0}`);
+    // Declare variables outside try block for catch block access
+    const { month, category, polygon } = job.data;
+    const monthDate = new Date(month);
 
-      // BullMQ serializes Date objects to ISO strings in Redis
-      const monthDate = new Date(month);
+    try {
+      this.logger.log(`Job ${job.id} data extracted: month=${month}, category=${category}, polygon points=${polygon?.length || 0}`);
 
       this.logger.log(
         `Processing job ${job.id}: ${monthDate.toISOString().substring(0, 7)} for cell`,
