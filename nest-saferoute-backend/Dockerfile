@@ -39,12 +39,17 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY package*.json ./
 
+# Copy startup script
+COPY scripts/start-production.sh ./scripts/start-production.sh
+RUN chmod +x ./scripts/start-production.sh
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001
+    adduser -S nestjs -u 1001 && \
+    chown -R nestjs:nodejs /app
 
 USER nestjs
 
 EXPOSE 8000
 
-CMD ["node", "dist/src/main"]
+CMD ["./scripts/start-production.sh"]
