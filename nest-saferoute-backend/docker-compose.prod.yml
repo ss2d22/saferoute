@@ -38,8 +38,6 @@ services:
       dockerfile: Dockerfile
       target: production
     restart: unless-stopped
-    ports:
-      - "${PORT:-8000}:${PORT:-8000}"
     environment:
       NODE_ENV: production
       PORT: ${PORT:-8000}
