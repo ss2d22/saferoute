@@ -35,13 +35,16 @@ import { AdminModule } from './modules/admin/admin.module';
     }),
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get('redis.host') || 'localhost',
-          port: configService.get('redis.port') || 6379,
-          password: configService.get('redis.password'),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const password = configService.get('redis.password');
+        return {
+          connection: {
+            host: configService.get('redis.host') || 'localhost',
+            port: configService.get('redis.port') || 6379,
+            ...(password && { password }),
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     DatabaseModule,
