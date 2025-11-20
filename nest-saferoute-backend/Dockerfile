@@ -21,7 +21,6 @@ CMD ["npm", "run", "start:dev"]
 # Build stage
 FROM base AS build
 
-ARG NODE_ENV
 ENV NODE_ENV=development
 
 RUN npm ci
