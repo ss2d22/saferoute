@@ -26,19 +26,23 @@ export class CrimeIngestionProcessor extends WorkerHost {
     private categoryRepository: Repository<CrimeCategory>,
   ) {
     super();
+    this.logger.log('CrimeIngestionProcessor instantiated successfully');
+    this.logger.log(`Processor configured with concurrency: 10, rate limit: 300 jobs/30s`);
   }
 
   async process(job: Job<CrimeIngestionJobData>): Promise<any> {
-    const { month, category, polygon } = job.data;
-
-    // BullMQ serializes Date objects to ISO strings in Redis
-    const monthDate = new Date(month);
-
-    this.logger.log(
-      `Processing job ${job.id}: ${monthDate.toISOString().substring(0, 7)} for cell`,
-    );
+    this.logger.log(`Starting to process job ${job.id}`);
 
     try {
+      const { month, category, polygon } = job.data;
+      this.logger.log(`Job ${job.id} data extracted: month=${month}, category=${category}, polygon points=${polygon?.length || 0}`);
+
+      // BullMQ serializes Date objects to ISO strings in Redis
+      const monthDate = new Date(month);
+
+      this.logger.log(
+        `Processing job ${job.id}: ${monthDate.toISOString().substring(0, 7)} for cell`,
+      );
       // Fetch crimes from Police API with automatic splitting if needed
       const crimes = await this.policeAPIService.getCrimesWithSplit(
         polygon,
@@ -192,6 +196,8 @@ export class CrimeIngestionProcessor extends WorkerHost {
 
   @OnWorkerEvent('active')
   onActive(job: Job) {
-    this.logger.debug(`Job ${job.id} is now active`);
+    const { month } = job.data;
+    const monthDate = new Date(month);
+    this.logger.log(`Job ${job.id} is now ACTIVE - processing ${monthDate.toISOString().substring(0, 7)}`);
   }
 }
