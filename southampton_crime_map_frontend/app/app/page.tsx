@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Navbar } from "@/components/navbar";
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { debounce } from "@/lib/utils";
 import {
   getSafetySnapshot,
   getSafeRoutes,
@@ -90,6 +91,8 @@ function MapPageContent() {
   const [mode, setMode] = useState<"foot-walking" | "cycling-regular">(
     "foot-walking"
   );
+  const [loadingHeatmap, setLoadingHeatmap] = useState(false);
+  const [heatmapProgress, setHeatmapProgress] = useState<{loaded: number, total: number} | null>(null);
 
   const heatmapLayerRef = useRef<LeafletGeoJSON | null>(null);
   const routesLayersRef = useRef<LeafletGeoJSON[]>([]);
@@ -98,6 +101,7 @@ function MapPageContent() {
   const destinationMarkerRef = useRef<LeafletMarker | null>(null);
   const lastToastTimeRef = useRef<number>(0);
   const initialLoadDone = useRef<boolean>(false);
+  const renderAnimationRef = useRef<number | null>(null);
 
   useEffect(() => {
     import("leaflet").then((leaflet) => {
@@ -131,17 +135,47 @@ function MapPageContent() {
         return;
       }
 
+      // Cancel any ongoing rendering
+      if (renderAnimationRef.current) {
+        cancelAnimationFrame(renderAnimationRef.current);
+        renderAnimationRef.current = null;
+      }
+
       if (heatmapLayerRef.current) {
         map.removeLayer(heatmapLayerRef.current);
         heatmapLayerRef.current = null;
       }
 
       if (!showHeatmap) {
+        setHeatmapProgress(null);
         return;
       }
 
       if (cells.length === 0) {
+        setHeatmapProgress(null);
         return;
+      }
+
+      // Get current zoom level for styling optimization
+      const zoom = map.getZoom();
+
+      // Zoom-based filtering - don't render detailed hexagons when zoomed out
+      if (zoom < 11) {
+        toast.info("Zoom in to see detailed crime heatmap", { duration: 2000 });
+        setHeatmapProgress(null);
+        return;
+      }
+
+      // Cell count limiting
+      const MAX_CELLS = 2000;
+      let cellsToRender = cells;
+
+      if (cells.length > MAX_CELLS) {
+        toast.warning(
+          `Showing ${MAX_CELLS} of ${cells.length} cells. Zoom in for more detail.`,
+          { duration: 3000 }
+        );
+        cellsToRender = cells.slice(0, MAX_CELLS);
       }
 
       if (!map.getPane("heatmapPane")) {
@@ -152,87 +186,116 @@ function MapPageContent() {
         pane.style.display = "block";
       }
 
-      const geojsonLayer = L.current.geoJSON(
-        {
-          type: "FeatureCollection",
-          features: cells.map((cell) => {
-            return {
-              type: "Feature" as const,
-              properties: {
-                risk_score: cell.riskScore,
-                safety_score: cell.safetyScore,
-                crime_count: cell.crimeCount,
-                crime_breakdown: cell.categoryBreakdown,
-              },
-              geometry: cell.geometry,
-            };
-          }),
-        },
-        {
-          pane: "heatmapPane",
-          interactive: true,
-          bubblingMouseEvents: false,
-          style: (feature: any) => {
-            const safetyScore = feature?.properties.safety_score || 0;
-            let color = "#dc2626";
-            let fillOpacity = 0.45;
+      // Zoom-based styling configuration
+      const getStyleForZoom = (safetyScore: number) => {
+        let color = "#dc2626";
+        let fillOpacity = 0.45;
 
-            if (safetyScore >= 75) {
-              color = "#16a34a";
-              fillOpacity = 0.3;
-            } else if (safetyScore >= 50) {
-              color = "#ca8a04";
-              fillOpacity = 0.4;
-            } else {
-              fillOpacity = 0.45;
-            }
-
-            return {
-              fillColor: color,
-              fillOpacity: fillOpacity,
-              color: color,
-              weight: 1.5,
-              opacity: 0.9,
-            };
-          },
-          onEachFeature: (feature: any, layer: any) => {
-            layer.on("click", () => {
-              const props = feature.properties;
-              const crimeBreakdown = props.crime_breakdown || {};
-              const topCategories = Object.entries(crimeBreakdown)
-                .sort(([, a], [, b]) => (b as number) - (a as number))
-                .slice(0, 3);
-
-              layer
-                .bindPopup(
-                  `
-              <div class="p-3">
-                <p class="font-bold mb-1">Safety: ${props.safety_score?.toFixed(
-                  0
-                )}/100</p>
-                <p class="text-xs mb-2">Incidents: ${props.crime_count}</p>
-                ${
-                  topCategories.length > 0
-                    ? topCategories
-                        .map(
-                          ([cat, count]) => `
-                  <p class="text-xs text-muted-foreground">• ${cat}: ${count}</p>
-                `
-                        )
-                        .join("")
-                    : ""
-                }
-              </div>
-            `
-                )
-                .openPopup();
-            });
-          },
+        if (safetyScore >= 75) {
+          color = "#16a34a";
+          fillOpacity = 0.3;
+        } else if (safetyScore >= 50) {
+          color = "#ca8a04";
+          fillOpacity = 0.4;
         }
-      );
 
-      geojsonLayer.addTo(map);
-      heatmapLayerRef.current = geojsonLayer;
+        // Simplify styling at lower zoom levels
+        if (zoom < 13) {
+          return {
+            fillColor: color,
+            fillOpacity: fillOpacity * 0.5,
+            color: color,
+            weight: 0.5,
+            opacity: 0.6,
+          };
+        }
+
+        return {
+          fillColor: color,
+          fillOpacity: fillOpacity,
+          color: color,
+          weight: 1.5,
+          opacity: 0.9,
+        };
+      };
+
+      // Incremental rendering with requestAnimationFrame
+      const BATCH_SIZE = 200;
+      let currentIndex = 0;
+      const featureGroup = L.current.featureGroup();
+
+      const renderBatch = () => {
+        const batch = cellsToRender.slice(currentIndex, currentIndex + BATCH_SIZE);
+
+        batch.forEach((cell) => {
+          const feature = {
+            type: "Feature" as const,
+            properties: {
+              risk_score: cell.riskScore,
+              safety_score: cell.safetyScore,
+              crime_count: cell.crimeCount,
+              crime_breakdown: cell.categoryBreakdown,
+            },
+            geometry: cell.geometry,
+          };
+
+          const layer = L.current.geoJSON(feature, {
+            pane: "heatmapPane",
+            interactive: zoom >= 13, // Disable interaction at low zoom
+            bubblingMouseEvents: false,
+            style: () => getStyleForZoom(cell.safetyScore),
+            onEachFeature: (feature: any, layer: any) => {
+              if (zoom >= 13) {
+                layer.on("click", () => {
+                  const props = feature.properties;
+                  const crimeBreakdown = props.crime_breakdown || {};
+                  const topCategories = Object.entries(crimeBreakdown)
+                    .sort(([, a], [, b]) => (b as number) - (a as number))
+                    .slice(0, 3);
+
+                  layer
+                    .bindPopup(
+                      `
+                    <div class="p-3">
+                      <p class="font-bold mb-1">Safety: ${props.safety_score?.toFixed(0)}/100</p>
+                      <p class="text-xs mb-2">Incidents: ${props.crime_count}</p>
+                      ${
+                        topCategories.length > 0
+                          ? topCategories
+                              .map(
+                                ([cat, count]) => `
+                        <p class="text-xs text-muted-foreground">• ${cat}: ${count}</p>
+                      `
+                              )
+                              .join("")
+                          : ""
+                      }
+                    </div>
+                  `
+                    )
+                    .openPopup();
+                });
+              }
+            },
+          });
+
+          featureGroup.addLayer(layer);
+        });
+
+        currentIndex += BATCH_SIZE;
+        setHeatmapProgress({ loaded: currentIndex, total: cellsToRender.length });
+
+        if (currentIndex < cellsToRender.length) {
+          renderAnimationRef.current = requestAnimationFrame(renderBatch);
+        } else {
+          featureGroup.addTo(map);
+          heatmapLayerRef.current = featureGroup;
+          setHeatmapProgress(null);
+          renderAnimationRef.current = null;
+        }
+      };
+
+      renderAnimationRef.current = requestAnimationFrame(renderBatch);
     },
     [showHeatmap]
   );
@@ -242,6 +305,8 @@ function MapPageContent() {
       if (!mapRef.current || !L.current) {
         return;
       }
+
+      setLoadingHeatmap(true);
 
       const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
 
@@ -255,9 +320,19 @@ function MapPageContent() {
         if (response.cells.length > 0) {
           renderHeatmap(response.cells);
         }
-      } catch (error) {}
+      } catch (error) {
+        console.error("Failed to load heatmap:", error);
+      } finally {
+        setLoadingHeatmap(false);
+      }
     },
     [showHeatmap, renderHeatmap]
+  );
+
+  // Debounced version to prevent excessive API calls during map movement
+  const debouncedLoadHeatmap = useMemo(
+    () => debounce(loadSafetyHeatmap, 500),
+    [loadSafetyHeatmap]
   );
 
   useEffect(() => {
@@ -887,10 +962,26 @@ function MapPageContent() {
         <div className="flex-1 relative">
           <MapContainer
             onMapLoad={handleMapLoad}
-            onBoundsChange={loadSafetyHeatmap}
+            onBoundsChange={debouncedLoadHeatmap}
             onMapClick={handleMapClick}
             pickMode={pickMode}
           />
+
+          {/* Loading & Progress Indicators */}
+          {(loadingHeatmap || heatmapProgress) && (
+            <div className="absolute bottom-20 right-4 z-1000">
+              <Card className="p-3 bg-card/95 backdrop-blur-sm shadow-lg border-border/50">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-sm font-medium">
+                    {heatmapProgress
+                      ? `Loading heatmap... ${Math.round((heatmapProgress.loaded / heatmapProgress.total) * 100)}%`
+                      : "Loading heatmap..."}
+                  </span>
+                </div>
+              </Card>
+            </div>
+          )}
 
           {/* Pick Mode Indicator */}
           <AnimatePresence>
