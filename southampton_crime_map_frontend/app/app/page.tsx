@@ -29,7 +29,7 @@ import {
   type SafeRoutePayload,
   type SafetySnapshotResponse,
 } from "@/lib/api";
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import {
   MapPin,
   Navigation,
@@ -155,6 +155,8 @@ function MapPageContent() {
         },
         {
           pane: "heatmapPane",
+          interactive: true,
+          bubblingMouseEvents: false,
           style: (feature: any) => {
             const safetyScore = feature?.properties.safety_score || 0;
             let color = "#dc2626"; // strong red
@@ -1028,8 +1030,17 @@ function MapPageContent() {
           <Button
             size="lg"
             variant={showHeatmap ? "default" : "secondary"}
-            className="rounded-full shadow-xl h-14 w-14"
-            onClick={() => setShowHeatmap(!showHeatmap)}
+            className="rounded-full shadow-xl h-14 w-14 active:scale-95 transition-transform touch-manipulation"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowHeatmap(!showHeatmap);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            aria-label={showHeatmap ? "Hide crime heatmap" : "Show crime heatmap"}
           >
             <Layers className="h-5 w-5" />
           </Button>
@@ -1041,15 +1052,15 @@ function MapPageContent() {
                 <Navigation className="h-7 w-7" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="max-h-[80vh] rounded-t-3xl border-t-4 border-primary/20 pb-safe">
+            <SheetContent side="bottom" className="max-h-[80vh] rounded-t-2xl border-t pb-safe px-0">
               {/* Drag Handle */}
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 bg-muted-foreground/30 rounded-full" />
 
-              <SheetHeader className="pt-6">
+              <div className="px-6 pt-8 pb-4">
                 <SheetTitle className="text-xl">Plan Your Safe Route</SheetTitle>
-              </SheetHeader>
+              </div>
 
-              <div className="overflow-y-auto max-h-[calc(80vh-120px)] pb-6 pt-6">
+              <div className="overflow-y-auto max-h-[calc(80vh-100px)] px-6 pb-6">
                 {/* Route Planning Controls */}
                 <div className="space-y-5">
                   {/* Instructions Card */}
@@ -1266,11 +1277,11 @@ function MapPageContent() {
         {/* Mobile Route Details Sheet */}
         {selectedRoute && (
           <Sheet open={mobileRouteSheetOpen} onOpenChange={setMobileRouteSheetOpen}>
-            <SheetContent side="bottom" className="max-h-[85vh] rounded-t-3xl lg:hidden border-t-4 border-primary/20 pb-safe">
+            <SheetContent side="bottom" className="max-h-[85vh] rounded-t-2xl lg:hidden border-t pb-safe px-0">
               {/* Drag Handle */}
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 bg-muted-foreground/30 rounded-full" />
 
-              <SheetHeader className="pt-6">
+              <div className="px-6 pt-8 pb-4">
                 <div className="flex items-center justify-between">
                   <SheetTitle className="text-xl">Route Details</SheetTitle>
                   {routes.length > 1 && (
@@ -1287,8 +1298,8 @@ function MapPageContent() {
                     </Button>
                   )}
                 </div>
-              </SheetHeader>
-              <div className="overflow-y-auto max-h-[calc(85vh-120px)] pb-6 pt-6 space-y-5">
+              </div>
+              <div className="overflow-y-auto max-h-[calc(85vh-100px)] px-6 pb-6 space-y-5">
                 {selectedRoute.rank === 1 && (
                   <Badge className="text-sm py-1 px-3">⭐ Recommended Route</Badge>
                 )}
