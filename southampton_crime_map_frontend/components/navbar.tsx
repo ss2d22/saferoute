@@ -122,7 +122,7 @@ export function Navbar() {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[85vw] max-w-sm p-0">
+              <SheetContent side="right" className="w-[85vw] max-w-sm p-0 z-[9999]">
                 <div className="flex flex-col h-full">
                   {/* Header */}
                   <div className="p-6 border-b border-border/50">
