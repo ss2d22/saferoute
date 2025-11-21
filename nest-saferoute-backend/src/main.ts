@@ -37,7 +37,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('SafeRoute API')
     .setDescription(
-      'SafeRoute finds safer routes through Southampton by analyzing UK Police crime data. ' +
+      'SafeRoute finds safer routes across London, Southampton, and South West England by analyzing UK Police crime data. ' +
       '\n\nFeatures: Safety heatmaps with crime risk visualization, multiple route alternatives ranked by safety score, ' +
       'historical crime analytics with time-of-day weighting, Redis caching, and automated monthly data updates.' +
       '\n\nData sources: UK Police API for crime data, OpenRouteService for routing, H3 hexagonal spatial indexing for efficient geographic queries.' +

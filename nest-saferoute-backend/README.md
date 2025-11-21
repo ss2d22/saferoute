@@ -1,14 +1,14 @@
 # SafeRoute API
 
-A NestJS-based REST API that calculates safe walking routes in Southampton using UK Police crime data and Uber's H3 hexagonal grid system.
+A NestJS-based REST API that calculates safe walking routes across Southern England using UK Police crime data and Uber's H3 hexagonal grid system.
 
 ## What It Does
 
 - Fetches and stores crime data from the UK Police API
 - Calculates safety scores for routes using weighted crime analysis
-- Generates H3 hexagonal heatmaps showing safety across Southampton
-- Provides three route alternatives ranked by safety and distance
-- Manages user authentication and route history
+- Generates H3 hexagonal heatmaps showing safety across London, Southampton, and South West England
+- Provides multiple route alternatives ranked by safety and distance
+- Manages user authentication and route history with JWT
 
 ## Tech Stack
 
@@ -112,7 +112,7 @@ H3_RESOLUTION=10
 
 - `GET /api/v1/h3-grids/cells` - Get H3 cells for bounding box
 - `GET /api/v1/h3-grids/safety-score` - Get safety score for coordinates
-- `GET /api/v1/h3-grids/southampton` - Get all Southampton cells
+- `GET /api/v1/h3-grids/southampton` - Get all cells for configured coverage area
 
 ### Admin Endpoints (Admin API Key Required)
 

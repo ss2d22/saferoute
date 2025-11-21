@@ -37,14 +37,14 @@ export default function HomePage() {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
               <MapPin className="h-4 w-4" />
-              Now Available in Southampton, UK
+              Now Available Across Southern England
             </div>
             <h1 className="text-5xl md:text-6xl font-bold mb-6 text-balance">
               Safety-Aware Routing for{" "}
-              <span className="text-primary">Southampton</span>
+              <span className="text-primary">London, Southampton & South West</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8 text-pretty max-w-2xl mx-auto">
-              Navigate Southampton with confidence using real-time route planning combined with historical crime data analysis for safer walking and cycling routes.
+              Navigate Southern England with confidence using real-time route planning combined with historical crime data analysis for safer walking and cycling routes across major cities.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
@@ -211,7 +211,7 @@ export default function HomePage() {
                 step: "1",
                 title: "Choose Destination",
                 description:
-                  "Select your starting point and destination on the interactive Southampton map",
+                  "Select your starting point and destination anywhere across London, Southampton, and South West England",
               },
               {
                 icon: Database,
@@ -341,9 +341,9 @@ export default function HomePage() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Built For Southampton</h2>
+            <h2 className="text-4xl font-bold mb-4">Built For Southern England</h2>
             <p className="text-xl text-muted-foreground">
-              Whether you're a local or visiting the city
+              Whether you're a local or visiting the region
             </p>
           </div>
 
@@ -353,7 +353,7 @@ export default function HomePage() {
                 icon: Users,
                 title: "For Locals",
                 description:
-                  "Know your city better. Discover safer routes for your daily Southampton commute and evening walks.",
+                  "Know your city better. Discover safer routes for your daily commute and evening walks across London, Southampton, and South West England.",
                 features: [
                   "Save frequent routes",
                   "View route history",
@@ -364,7 +364,7 @@ export default function HomePage() {
                 icon: Globe,
                 title: "For Visitors",
                 description:
-                  "Navigate Southampton confidently. Get local safety insights before exploring the city center and waterfront.",
+                  "Navigate confidently. Get local safety insights before exploring city centers, waterfronts, and historic areas.",
                 features: [
                   "Real-time safety data",
                   "Multiple route options",
@@ -375,11 +375,11 @@ export default function HomePage() {
                 icon: Bike,
                 title: "For Students",
                 description:
-                  "Safe routes to University of Southampton campuses. Perfect for late-night study sessions and early morning classes.",
+                  "Safe routes to universities and campuses. Perfect for late-night study sessions, early morning classes, and exploring the city.",
                 features: [
                   "Walking & cycling routes",
                   "Time-of-day awareness",
-                  "Campus area coverage",
+                  "Complete city coverage",
                 ],
               },
             ].map((useCase, index) => (
@@ -437,7 +437,7 @@ export default function HomePage() {
                 <BarChart3 className="h-8 w-8 text-primary mb-4" />
                 <h3 className="text-xl font-bold mb-3">UK Police Data</h3>
                 <p className="text-muted-foreground">
-                  We use official UK Police API data for Southampton, processed through our H3 spatial index. Historical crime patterns are analyzed with time-weighted and recency-weighted algorithms for accurate risk assessment.
+                  We use official UK Police API data across Southern England, processed through our H3 spatial index. Historical crime patterns are analyzed with time-weighted and recency-weighted algorithms for accurate risk assessment.
                 </p>
               </Card>
 
@@ -459,9 +459,9 @@ export default function HomePage() {
 
               <Card className="p-6">
                 <MapPin className="h-8 w-8 text-primary mb-4" />
-                <h3 className="text-xl font-bold mb-3">Southampton Coverage</h3>
+                <h3 className="text-xl font-bold mb-3">Regional Coverage</h3>
                 <p className="text-muted-foreground">
-                  Complete coverage of Southampton including city center, university campuses, waterfront areas, and residential neighborhoods with regular data updates.
+                  Complete coverage of London, Southampton, and South West England (including Exeter) with city centers, university campuses, waterfronts, and residential areas regularly updated.
                 </p>
               </Card>
             </div>
@@ -499,16 +499,16 @@ export default function HomePage() {
                   How fresh is the crime data?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground">
-                  We use official UK Police API data with automated background job processing via BullMQ queues. Our NestJS backend periodically ingests new data and rebuilds the H3 spatial grid to ensure you always have the most current crime statistics for Southampton.
+                  We use official UK Police API data with automated background job processing via BullMQ queues. Our NestJS backend periodically ingests new data and rebuilds the H3 spatial grid to ensure you always have the most current crime statistics across all covered regions.
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="item-3" className="bg-card rounded-lg px-6">
                 <AccordionTrigger className="text-left">
-                  Which areas of Southampton are covered?
+                  Which areas are covered?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground">
-                  SafeRoute covers all of Southampton including the city center, Ocean Village, Bedford Place, Portswood, Highfield (University area), Southampton Common, and all residential neighborhoods where UK Police data is available.
+                  SafeRoute covers London (all boroughs), Southampton and the South Coast, and South West England including Exeter and surrounding areas. All regions where UK Police data is available are included in our coverage area.
                 </AccordionContent>
               </AccordionItem>
 
@@ -554,10 +554,10 @@ export default function HomePage() {
           >
             <Card className="p-12 bg-gradient-to-br from-primary/10 via-card to-card border-primary/20">
               <h2 className="text-4xl font-bold mb-4">
-                Ready to Navigate Southampton Safely?
+                Ready to Navigate Safely?
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
-                Try SafeRoute today and discover safer routes across the city
+                Try SafeRoute today and discover safer routes across Southern England
               </p>
               <Button size="lg" asChild>
                 <Link href="/app">
@@ -575,7 +575,7 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
-              <span className="font-bold">SafeRoute Southampton</span>
+              <span className="font-bold">SafeRoute</span>
             </div>
             <p className="text-sm text-muted-foreground">
               © 2025 SafeRoute. Built with NestJS & Next.js. Data from UK Police & OpenRouteService.

@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { CrimeCategory } from '../entities/crime-category.entity';
 
 export interface CrimeIngestionJobData {
@@ -24,30 +25,41 @@ export interface IngestionProgress {
 export class CrimeIngestionService {
   private readonly logger = new Logger(CrimeIngestionService.name);
 
-  // Southampton bounding box with grid subdivisions for efficient API querying
-  private readonly SOUTHAMPTON_GRID = this.generateSouthamptonGrid();
+  private readonly COVERAGE_GRID: [number, number][][];
 
   constructor(
     @InjectQueue('crime-ingestion')
     private crimeIngestionQueue: Queue,
     @InjectRepository(CrimeCategory)
     private categoryRepository: Repository<CrimeCategory>,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    this.COVERAGE_GRID = this.generateCoverageGrid();
+  }
 
   /**
-   * Generate grid cells for Southampton area to avoid API 503 errors
+   * Generate grid cells for coverage area to avoid API 503 errors
    */
-  private generateSouthamptonGrid(): [number, number][][] {
-    // Southampton bounding box (expanded to match Python coverage + extend to Hedge End)
-    const minLat = 50.85;  // Extended south to match Python
-    const maxLat = 51.00;  // Extended north to match Python
-    const minLng = -1.55;  // Extended west to match Python
-    const maxLng = -1.25;  // Extended east for Hedge End coverage
+  private generateCoverageGrid(): [number, number][][] {
+    // Get bounding box from environment configuration
+    const bboxStr =
+      this.configService.get<string>('grid.southamptonBbox') ||
+      '50.85,-1.55,51.0,-1.3';
+    const [minLat, minLng, maxLat, maxLng] = bboxStr.split(',').map(parseFloat);
 
-    // Divide into 4x4 grid (16 cells) to stay under 10k crimes per query
-    const gridSize = 4;
-    const latStep = (maxLat - minLat) / gridSize;
-    const lngStep = (maxLng - minLng) / gridSize;
+    // Calculate grid size based on area to stay under 10k crimes per query
+    // Larger areas need more subdivisions
+    const latRange = maxLat - minLat;
+    const lngRange = maxLng - minLng;
+    const area = latRange * lngRange;
+
+    // Adjust grid size based on area (rough heuristic)
+    // Small area (Southampton only): 4x4 = 16 cells
+    // Large area (Southern England): 8x8 = 64 cells
+    const gridSize = area > 1.0 ? 8 : 4;
+
+    const latStep = latRange / gridSize;
+    const lngStep = lngRange / gridSize;
 
     const cells: [number, number][][] = [];
 
@@ -68,6 +80,10 @@ export class CrimeIngestionService {
       }
     }
 
+    this.logger.log(
+      `Generated ${cells.length} grid cells for bbox ${bboxStr} (${gridSize}x${gridSize})`,
+    );
+
     return cells;
   }
 
@@ -86,7 +102,7 @@ export class CrimeIngestionService {
     const currentMonth = new Date(startMonth);
 
     while (currentMonth <= endMonth) {
-      for (const polygon of this.SOUTHAMPTON_GRID) {
+      for (const polygon of this.COVERAGE_GRID) {
         const job = await this.crimeIngestionQueue.add(
           'ingest-crimes',
           {
@@ -96,7 +112,7 @@ export class CrimeIngestionService {
             attempt: 1,
           } as CrimeIngestionJobData,
           {
-            jobId: `crime-${currentMonth.toISOString().substring(0, 7)}-cell-${this.SOUTHAMPTON_GRID.indexOf(polygon)}`,
+            jobId: `crime-${currentMonth.toISOString().substring(0, 7)}-cell-${this.COVERAGE_GRID.indexOf(polygon)}`,
           },
         );
 
@@ -107,7 +123,7 @@ export class CrimeIngestionService {
     }
 
     this.logger.log(
-      `Queued ${jobIds.length} ingestion jobs (${this.SOUTHAMPTON_GRID.length} cells per month)`,
+      `Queued ${jobIds.length} ingestion jobs (${this.COVERAGE_GRID.length} cells per month)`,
     );
 
     return { jobIds };

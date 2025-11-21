@@ -1,20 +1,21 @@
 # SafeRoute
 
-Find the safest walking and cycling routes in Southampton using real UK crime data.
+Find the safest walking and cycling routes across Southern England using real UK crime data.
 
 ## What It Does
 
-SafeRoute analyzes crime data from the UK Police API to help you find safer routes. Instead of just showing you the shortest path, it gives you three route options ranked by safety based on actual crime incidents in the area.
+SafeRoute analyzes crime data from the UK Police API to help you find safer routes across London, Southampton, and South West England. Instead of just showing you the shortest path, it gives you multiple route options ranked by safety based on actual crime incidents in the area.
 
 ## Key Features
 
 - **Crime-Based Routing**: Routes are scored using real crime data from the UK Police API
-- **Multiple Route Options**: See 3 alternative routes with safety scores for each
-- **Crime Heatmap**: View crime density across Southampton on a hexagonal grid
-- **Recency Weighting**: Recent crimes are weighted more heavily than older ones
+- **Multiple Route Options**: See alternative routes with safety scores for each
+- **Crime Heatmap**: View crime density on an interactive H3 hexagonal grid (~73m resolution)
+- **Time-Weighted Scoring**: Recent crimes weighted more heavily, with time-of-day awareness
 - **Cambridge Crime Harm Index**: Crime severity based on UK sentencing guidelines
 - **Interactive Map**: Click to set origin and destination, see routes with turn-by-turn directions
 - **Export to Google Maps**: Open your chosen route in Google Maps
+- **Route History**: Save and track your routes (requires authentication)
 
 ## Tech Stack
 
@@ -104,7 +105,7 @@ npm run seed
 4. **Ingest crime data**
 
 ```bash
-# Ingest recent crime data for Southampton
+# Ingest recent crime data for the configured coverage area
 npm run ingest
 
 # Generate H3 grid for heatmap
@@ -172,4 +173,9 @@ Once the backend is running, Swagger docs are available at:
 
 ## Data Coverage
 
-Currently supports Southampton, UK. Crime data goes back 12 months.
+Currently supports:
+- **London** (all boroughs)
+- **Southampton** and South Coast
+- **South West England** (including Exeter and surrounding areas)
+
+Crime data analyzed over the past 12 months with automated monthly updates via BullMQ job queues.
