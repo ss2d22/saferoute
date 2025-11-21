@@ -59,11 +59,10 @@ export class H3GridService {
     return Array.from(cells);
   }
 
-  generateSouthamptonH3Cells(resolution: number = 10): string[] {
-    const minLat = 50.87;
-    const maxLat = 50.96;
-    const minLng = -1.47;
-    const maxLng = -1.28;
+  generateCoverageAreaH3Cells(resolution: number = 10): string[] {
+    // Get bounding box from environment configuration
+    const bboxStr = this.configService.get<string>('grid.southamptonBbox') || '50.85,-1.55,51.0,-1.3';
+    const [minLat, minLng, maxLat, maxLng] = bboxStr.split(',').map(parseFloat);
 
     return this.generateH3CellsForBBox(minLat, minLng, maxLat, maxLng, resolution);
   }
@@ -165,10 +164,11 @@ export class H3GridService {
     const cutoffDate = new Date(month);
     cutoffDate.setMonth(cutoffDate.getMonth() - lookbackMonths);
 
-    const minLat = 50.85;
-    const maxLat = 51.00;
-    const minLng = -1.55;
-    const maxLng = -1.25;
+    // Get bounding box from environment configuration
+    const bboxStr = this.configService.get<string>('grid.southamptonBbox') || '50.85,-1.55,51.0,-1.3';
+    const [minLat, minLng, maxLat, maxLng] = bboxStr.split(',').map(parseFloat);
+
+    this.logger.log(`Using coverage area: ${bboxStr}`);
 
     const crimes = await this.crimeRepository.getCrimeStatsForBBox(
       minLng,

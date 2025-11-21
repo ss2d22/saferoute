@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { H3GridService } from '../services/h3-grid.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import * as h3 from 'h3-js';
@@ -15,7 +16,10 @@ import * as h3 from 'h3-js';
 @ApiTags('H3 Grids')
 @Controller('h3-grids')
 export class H3GridController {
-  constructor(private h3GridService: H3GridService) {}
+  constructor(
+    private h3GridService: H3GridService,
+    private configService: ConfigService,
+  ) {}
 
   @Get('cells')
   @ApiOperation({ summary: 'Get H3 cells for a bounding box' })
@@ -117,16 +121,14 @@ export class H3GridController {
   }
 
   @Get('southampton')
-  @ApiOperation({ summary: 'Get all H3 cells for Southampton' })
+  @ApiOperation({ summary: 'Get all H3 cells for configured coverage area' })
   @ApiQuery({ name: 'month', required: false, type: String })
   async getSouthamptonCells(@Query('month') month?: string) {
     const monthDate = month ? new Date(month + '-01') : undefined;
 
-    // Southampton bounding box (expanded to include Airport, Hedge End, and surrounding areas)
-    const minLat = 50.87;
-    const maxLat = 50.96;
-    const minLng = -1.47;
-    const maxLng = -1.28;
+    // Get bounding box from environment configuration
+    const bboxStr = this.configService.get<string>('grid.southamptonBbox') || '50.85,-1.55,51.0,-1.3';
+    const [minLat, minLng, maxLat, maxLng] = bboxStr.split(',').map(parseFloat);
 
     const cells = await this.h3GridService.getH3CellsForBBox(
       minLat,
