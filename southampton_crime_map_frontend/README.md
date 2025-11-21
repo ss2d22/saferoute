@@ -5,6 +5,7 @@ Interactive web interface for finding safer walking and cycling routes across So
 ## Features
 
 - **Large-Scale Crime Visualization**: H3 hexagonal grid displaying 2.3M+ crimes across Southern England
+- **Performance Optimized**: Debounced loading, 2k cell limits, zoom-based rendering, and incremental batching keep the map smooth even in high-density areas like central London
 - **Interactive Map**: Click to set origin and destination points on Leaflet
 - **Route Visualization**: View 3 alternative routes with safety scores (0-100 scale)
 - **Real-Time Heatmap**: Crime density visualization at ~73m resolution with color-coded safety levels
@@ -87,10 +88,22 @@ southampton_crime_map_frontend/
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
+## Performance Optimizations
+
+The map handles thousands of crime hexagons without lag through several techniques:
+
+- **Debounced Loading**: 500ms delay after map movement prevents API spam
+- **Cell Limiting**: Hard cap of 2,000 cells per viewport with warnings for users
+- **Zoom-Based Rendering**: Heatmap hidden below zoom 11, simplified styling below zoom 13
+- **Incremental Rendering**: Hexagons drawn in 200-cell batches using requestAnimationFrame
+- **Dynamic Interactivity**: Click handlers disabled at low zoom levels to improve performance
+
+These optimizations make London viewable at any zoom level while maintaining 60fps.
+
 ## Key Components
 
 ### Map Component
-Interactive map using MapLibre GL with:
+Interactive map with:
 - Click handlers for setting origin/destination
 - Route polyline rendering
 - H3 hexagon heatmap layer
