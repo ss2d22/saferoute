@@ -6,17 +6,15 @@ services:
       POSTGRES_USER: ${DATABASE_USERNAME:-saferoute}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME:-saferoute}
-      POSTGRES_INITDB_ARGS: "-E UTF8"
+      POSTGRES_INITDB_ARGS: '-E UTF8'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME:-saferoute}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${DATABASE_USERNAME:-saferoute}']
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
-    networks:
-      - saferoute-network
 
   redis:
     image: redis:7-alpine
@@ -25,12 +23,18 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      test:
+        [
+          'CMD',
+          'redis-cli',
+          '--no-auth-warning',
+          '-a',
+          '${REDIS_PASSWORD}',
+          'ping',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - saferoute-network
 
   app:
     build:
@@ -39,7 +43,7 @@ services:
       target: production
     restart: unless-stopped
     ports:
-      - "3000:8000"
+      - '3000:8000'
     environment:
       NODE_ENV: production
       PORT: ${PORT:-8000}
@@ -81,10 +85,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - saferoute-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:${PORT:-8000}/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -95,7 +97,3 @@ volumes:
     driver: local
   redis_data:
     driver: local
-
-networks:
-  saferoute-network:
-    driver: bridge
