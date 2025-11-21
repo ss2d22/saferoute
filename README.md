@@ -4,16 +4,17 @@ Find the safest walking and cycling routes across Southern England using real UK
 
 ## What It Does
 
-SafeRoute analyzes crime data from the UK Police API to help you find safer routes across London, Southampton, and South West England. Instead of just showing you the shortest path, it gives you multiple route options ranked by safety based on actual crime incidents in the area.
+SafeRoute processes over 2.3 million crime records to help you find safer routes across London, Southampton, and South West England. The system ingests crime data from multiple UK police forces and generates an H3 hexagonal grid that covers the entire region at ~73m resolution. Instead of just showing you the shortest path, it analyzes actual crime patterns to give you multiple route options ranked by safety.
 
 ## Key Features
 
-- **Crime-Based Routing**: Routes are scored using real crime data from the UK Police API
-- **Multiple Route Options**: See alternative routes with safety scores for each
-- **Crime Heatmap**: View crime density on an interactive H3 hexagonal grid (~73m resolution)
-- **Time-Weighted Scoring**: Recent crimes weighted more heavily, with time-of-day awareness
-- **Cambridge Crime Harm Index**: Crime severity based on UK sentencing guidelines
-- **Interactive Map**: Click to set origin and destination, see routes with turn-by-turn directions
+- **Large-Scale Crime Grid**: 2.3+ million crimes mapped onto an H3 hexagonal grid system at resolution 10 (~73m per cell)
+- **Multi-Region Coverage**: London, Southampton, and South West England (95x larger than the original Southampton-only deployment)
+- **Automated Data Pipeline**: BullMQ job queue processes 2,016 jobs (144 geographic cells × 14 months of data)
+- **Crime-Based Routing**: Routes are scored using weighted crime analysis with recency, time-of-day, and harm severity
+- **Cambridge Crime Harm Index**: Crime severity weighted by UK sentencing guidelines
+- **Interactive Heatmap**: Real-time visualization of crime density across the entire coverage area
+- **Multiple Route Options**: See alternative routes with safety scores, distance, and turn-by-turn directions
 - **Export to Google Maps**: Open your chosen route in Google Maps
 - **Route History**: Save and track your routes (requires authentication)
 
@@ -22,11 +23,11 @@ SafeRoute analyzes crime data from the UK Police API to help you find safer rout
 ### Backend
 
 - **NestJS** - TypeScript framework with dependency injection
-- **PostgreSQL + PostGIS** - Spatial database for crime data
-- **TypeORM** - Database ORM
-- **BullMQ + Redis** - Job queue for crime data ingestion
-- **Turf.js** - Geospatial analysis
-- **H3** - Hexagonal grid system for heatmaps
+- **PostgreSQL + PostGIS** - Spatial database storing 2.3M+ crime records with geographic indexing
+- **TypeORM** - Database ORM with raw SQL for performance-critical operations
+- **BullMQ + Redis** - Job queue handling 2,000+ concurrent crime ingestion tasks
+- **Uber H3** - Hexagonal hierarchical spatial index at resolution 10 (73m cells)
+- **Turf.js** - Geospatial calculations for route analysis
 
 ### Frontend
 
@@ -173,9 +174,15 @@ Once the backend is running, Swagger docs are available at:
 
 ## Data Coverage
 
-Currently supports:
-- **London** (all boroughs)
-- **Southampton** and South Coast
-- **South West England** (including Exeter and surrounding areas)
+The system covers 4.29 square degrees across Southern England (95x larger than the initial Southampton deployment):
 
-Crime data analyzed over the past 12 months with automated monthly updates via BullMQ job queues.
+- **London** - Full Metropolitan Police coverage (all boroughs)
+- **Southampton & South Coast** - Hampshire Constabulary
+- **South West England** - Devon & Cornwall Police (including Exeter)
+
+**Data Scale:**
+- 2.3+ million crime records ingested and processed
+- 144 geographic grid cells for parallelized API requests
+- 14 months of historical data with monthly updates
+- H3 grid generation processes crimes in 10,000-record batches with 4GB heap allocation
+- Adaptive polygon splitting (up to 5 levels deep) handles high-density areas like central London

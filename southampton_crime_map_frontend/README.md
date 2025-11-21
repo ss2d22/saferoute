@@ -1,27 +1,28 @@
 # SafeRoute Frontend
 
-Interactive web interface for finding safer walking and cycling routes in Southampton using crime data.
+Interactive web interface for finding safer walking and cycling routes across Southern England. Visualizes 2.3+ million crimes on an H3 hexagonal grid.
 
 ## Features
 
-- **Interactive Map**: Click to set origin and destination points
-- **Route Visualization**: View 3 alternative routes with safety scores
-- **Crime Heatmap**: H3 hexagonal grid showing crime density
+- **Large-Scale Crime Visualization**: H3 hexagonal grid displaying 2.3M+ crimes across Southern England
+- **Interactive Map**: Click to set origin and destination points on MapLibre GL
+- **Route Visualization**: View 3 alternative routes with safety scores (0-100 scale)
+- **Real-Time Heatmap**: Crime density visualization at ~73m resolution with color-coded safety levels
 - **Turn-by-Turn Directions**: Step-by-step navigation instructions
 - **Export to Google Maps**: Open selected route in Google Maps
 - **Dark Mode**: Toggle between light and dark themes
-- **Responsive Design**: Works on desktop and mobile devices
+- **Responsive Design**: Optimized for desktop and mobile devices
 
 ## Tech Stack
 
 - **Next.js 16.0.3** - React framework with App Router and Turbopack
 - **React 19** - UI library
 - **TypeScript** - Type safety
-- **MapLibre GL 5.12.0** - Interactive map rendering
+- **MapLibre GL 5.12.0** - High-performance WebGL map rendering (handles thousands of H3 hexagons)
 - **Tailwind CSS 4** - Styling
 - **shadcn/ui** - Component library (Radix UI primitives)
 - **React Hook Form + Zod** - Form handling and validation
-- **Framer Motion** - Animations
+- **Framer Motion** - Smooth animations
 - **next-themes** - Theme management
 
 ## Getting Started
@@ -103,10 +104,12 @@ Displays route alternatives with:
 - Export to Google Maps button
 
 ### Heatmap Layer
-H3 hexagonal grid showing crime density:
-- Color-coded by safety score
+H3 hexagonal grid visualizing 2.3M+ crimes:
+- Resolution 10 hexagons (~73m edge length)
+- Color-coded by safety score (0-100)
 - Green = safe, red = high crime
-- Clickable cells for details
+- Thousands of cells rendered via WebGL
+- Clickable cells show crime statistics and category breakdowns
 
 ## Environment Variables
 
