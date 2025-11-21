@@ -1023,95 +1023,144 @@ function MapPageContent() {
         </AnimatePresence>
 
         {/* Mobile Floating Action Buttons */}
-        <div className="md:hidden fixed bottom-4 right-4 flex flex-col gap-3 z-[500]">
-          {/* Route Planning Button */}
+        <div className="md:hidden fixed bottom-6 left-0 right-0 z-500 px-4 flex justify-between items-end">
+          {/* Heatmap Toggle - Left Side */}
+          <Button
+            size="lg"
+            variant={showHeatmap ? "default" : "secondary"}
+            className="rounded-full shadow-xl h-14 w-14"
+            onClick={() => setShowHeatmap(!showHeatmap)}
+          >
+            <Layers className="h-5 w-5" />
+          </Button>
+
+          {/* Route Planning Button - Right Side */}
           <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
             <SheetTrigger asChild>
-              <Button size="lg" className="rounded-full shadow-lg h-14 w-14">
-                <Navigation className="h-6 w-6" />
+              <Button size="lg" className="rounded-full shadow-xl h-16 w-16 text-lg">
+                <Navigation className="h-7 w-7" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
-              <SheetHeader>
-                <SheetTitle>Plan Your Route</SheetTitle>
+            <SheetContent side="bottom" className="max-h-[80vh] rounded-t-3xl border-t-4 border-primary/20 pb-safe">
+              {/* Drag Handle */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
+
+              <SheetHeader className="pt-6">
+                <SheetTitle className="text-xl">Plan Your Safe Route</SheetTitle>
               </SheetHeader>
-              <div className="overflow-y-auto h-full pb-6 pt-4">
+
+              <div className="overflow-y-auto max-h-[calc(80vh-120px)] pb-6 pt-6">
                 {/* Route Planning Controls */}
-                <div className="space-y-6">
-                  {!isAuthenticated && (
-                    <Card className="p-3 bg-primary/5 border-primary/20">
-                      <p className="text-xs flex items-center gap-2">
-                        <Info className="h-3.5 w-3.5 flex-shrink-0" />
-                        <span>Sign in to save routes to history</span>
-                      </p>
+                <div className="space-y-5">
+                  {/* Instructions Card */}
+                  {(!origin || !destination) && (
+                    <Card className="p-4 bg-primary/5 border-primary/20">
+                      <div className="flex gap-3">
+                        <Info className="h-5 w-5 shrink-0 text-primary mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium mb-1">How to plan a route:</p>
+                          <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                            <li>Tap the pin buttons below</li>
+                            <li>Then tap locations on the map</li>
+                            <li>We'll find the safest routes for you</li>
+                          </ol>
+                        </div>
+                      </div>
                     </Card>
                   )}
 
-                  {/* Origin/Destination */}
+                  {/* Origin Selection */}
                   <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Origin</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Click map to set"
-                          value={
-                            origin
-                              ? `${origin.lat.toFixed(4)}, ${origin.lng.toFixed(4)}`
-                              : ""
-                          }
-                          readOnly
-                          className="flex-1"
-                        />
+                    <Label className="text-base font-semibold flex items-center gap-2">
+                      Starting Point
+                      {pickMode === "origin" && (
+                        <Badge variant="default" className="text-xs animate-pulse">
+                          👆 Tap the map
+                        </Badge>
+                      )}
+                    </Label>
+                    <Card className={`p-4 ${pickMode === "origin" ? "ring-2 ring-primary" : ""}`}>
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          {origin ? (
+                            <div className="flex items-center gap-2 text-sm">
+                              <MapPin className="h-4 w-4 text-primary" />
+                              <span className="font-mono text-xs">
+                                {origin.lat.toFixed(4)}, {origin.lng.toFixed(4)}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Not set</p>
+                          )}
+                        </div>
                         <Button
-                          size="icon"
+                          size="lg"
                           variant={pickMode === "origin" ? "default" : "outline"}
                           onClick={() => {
                             setPickMode(pickMode === "origin" ? "none" : "origin");
                             setMobileSheetOpen(false);
                           }}
+                          className={`h-12 w-12 rounded-full ${pickMode === "origin" ? "animate-pulse" : ""}`}
                         >
-                          <MapPin className="h-4 w-4" />
+                          <MapPin className="h-5 w-5" />
                         </Button>
                       </div>
-                    </div>
+                    </Card>
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label>Destination</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Click map to set"
-                          value={
-                            destination
-                              ? `${destination.lat.toFixed(4)}, ${destination.lng.toFixed(4)}`
-                              : ""
-                          }
-                          readOnly
-                          className="flex-1"
-                        />
+                  {/* Destination Selection */}
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold flex items-center gap-2">
+                      Destination
+                      {pickMode === "destination" && (
+                        <Badge variant="default" className="text-xs animate-pulse">
+                          👆 Tap the map
+                        </Badge>
+                      )}
+                    </Label>
+                    <Card className={`p-4 ${pickMode === "destination" ? "ring-2 ring-primary" : ""}`}>
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          {destination ? (
+                            <div className="flex items-center gap-2 text-sm">
+                              <MapPin className="h-4 w-4 text-primary" />
+                              <span className="font-mono text-xs">
+                                {destination.lat.toFixed(4)}, {destination.lng.toFixed(4)}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Not set</p>
+                          )}
+                        </div>
                         <Button
-                          size="icon"
+                          size="lg"
                           variant={pickMode === "destination" ? "default" : "outline"}
                           onClick={() => {
                             setPickMode(pickMode === "destination" ? "none" : "destination");
                             setMobileSheetOpen(false);
                           }}
+                          className={`h-12 w-12 rounded-full ${pickMode === "destination" ? "animate-pulse" : ""}`}
                         >
-                          <MapPin className="h-4 w-4" />
+                          <MapPin className="h-5 w-5" />
                         </Button>
                       </div>
-                    </div>
+                    </Card>
                   </div>
 
                   {/* Travel Mode */}
-                  <div className="space-y-2">
-                    <Label>Travel Mode</Label>
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Travel Mode</Label>
                     <Select value={mode} onValueChange={(v: any) => setMode(v)}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-14 text-base">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="foot-walking">Walking</SelectItem>
-                        <SelectItem value="cycling-regular">Cycling</SelectItem>
+                        <SelectItem value="foot-walking" className="text-base py-3">
+                          🚶 Walking
+                        </SelectItem>
+                        <SelectItem value="cycling-regular" className="text-base py-3">
+                          🚴 Cycling
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1123,16 +1172,17 @@ function MapPageContent() {
                       setMobileSheetOpen(false);
                     }}
                     disabled={!origin || !destination || loading}
-                    className="w-full h-12"
+                    size="lg"
+                    className="w-full h-14 text-base font-semibold shadow-lg"
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Finding Routes...
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Finding Safest Routes...
                       </>
                     ) : (
                       <>
-                        <Navigation className="mr-2 h-4 w-4" />
+                        <Navigation className="mr-2 h-5 w-5" />
                         Find Safe Routes
                       </>
                     )}
@@ -1140,8 +1190,11 @@ function MapPageContent() {
 
                   {/* Routes List */}
                   {routes.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="font-semibold">Routes Found</h3>
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-base">{routes.length} Routes Found</h3>
+                        <Badge variant="secondary" className="text-xs">Tap to view</Badge>
+                      </div>
                       {routes.map((route, index) => {
                         const isSelected = selectedRouteId === index;
                         const riskClass = route.safetyScore >= 75 ? "low" : route.safetyScore >= 50 ? "medium" : "high";
@@ -1149,74 +1202,95 @@ function MapPageContent() {
                         return (
                           <Card
                             key={index}
-                            className={`p-4 cursor-pointer transition-all ${
+                            className={`p-5 cursor-pointer transition-all active:scale-98 ${
                               isSelected
-                                ? "ring-2 ring-primary shadow-lg border-primary/50"
-                                : "border-border/50"
+                                ? "ring-2 ring-primary shadow-lg border-primary/50 bg-primary/5"
+                                : "border-border/50 active:bg-accent/50"
                             }`}
                             onClick={() => {
                               setSelectedRouteId(index);
                               setMobileRouteSheetOpen(true);
                             }}
                           >
-                            {route.rank === 1 && (
-                              <Badge className="mb-2 text-xs">Recommended</Badge>
-                            )}
-                            <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center justify-between mb-3">
+                              {route.rank === 1 && (
+                                <Badge className="text-xs">⭐ Recommended</Badge>
+                              )}
+                              {route.rank !== 1 && <div />}
+                              <Badge variant="outline" className={getRiskBadgeColor(riskClass)}>
+                                {riskClass} risk
+                              </Badge>
+                            </div>
+                            <div className="flex items-center justify-between">
                               <div>
-                                <div className="flex items-baseline gap-1">
-                                  <p className="font-bold text-2xl">
-                                    {route.safetyScore.toFixed(1)}
+                                <div className="flex items-baseline gap-1 mb-1">
+                                  <p className="font-bold text-3xl">
+                                    {route.safetyScore.toFixed(0)}
                                   </p>
                                   <span className="text-sm text-muted-foreground">/100</span>
                                 </div>
-                                <p className="text-xs text-muted-foreground">Safety Score</p>
+                                <p className="text-xs text-muted-foreground font-medium">Safety Score</p>
                               </div>
-                              <Badge variant="outline" className={getRiskBadgeColor(riskClass)}>
-                                {riskClass}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" />
-                                {(route.distanceM / 1000).toFixed(1)} km
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {Math.round(route.durationS / 60)} min
-                              </span>
+                              <div className="text-right space-y-1">
+                                <div className="flex items-center gap-1.5 text-sm">
+                                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-semibold">{(route.distanceM / 1000).toFixed(1)} km</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-sm">
+                                  <Clock className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-semibold">{Math.round(route.durationS / 60)} min</span>
+                                </div>
+                              </div>
                             </div>
                           </Card>
                         );
                       })}
                     </div>
                   )}
+
+                  {/* Sign in reminder */}
+                  {!isAuthenticated && routes.length > 0 && (
+                    <Card className="p-3 bg-muted/50 border-dashed">
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">
+                        <Info className="h-3.5 w-3.5 shrink-0" />
+                        <span>Sign in to save routes to your history</span>
+                      </p>
+                    </Card>
+                  )}
                 </div>
               </div>
             </SheetContent>
           </Sheet>
-
-          {/* Heatmap Toggle Button */}
-          <Button
-            size="lg"
-            variant={showHeatmap ? "default" : "outline"}
-            className="rounded-full shadow-lg h-14 w-14"
-            onClick={() => setShowHeatmap(!showHeatmap)}
-          >
-            <Layers className="h-6 w-6" />
-          </Button>
         </div>
 
         {/* Mobile Route Details Sheet */}
         {selectedRoute && (
           <Sheet open={mobileRouteSheetOpen} onOpenChange={setMobileRouteSheetOpen}>
-            <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl lg:hidden">
-              <SheetHeader>
-                <SheetTitle>Route Details</SheetTitle>
+            <SheetContent side="bottom" className="max-h-[85vh] rounded-t-3xl lg:hidden border-t-4 border-primary/20 pb-safe">
+              {/* Drag Handle */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
+
+              <SheetHeader className="pt-6">
+                <div className="flex items-center justify-between">
+                  <SheetTitle className="text-xl">Route Details</SheetTitle>
+                  {routes.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setMobileRouteSheetOpen(false);
+                        setMobileSheetOpen(true);
+                      }}
+                      className="text-sm"
+                    >
+                      ← All Routes
+                    </Button>
+                  )}
+                </div>
               </SheetHeader>
-              <div className="overflow-y-auto h-full pb-6 pt-4 space-y-6">
+              <div className="overflow-y-auto max-h-[calc(85vh-120px)] pb-6 pt-6 space-y-5">
                 {selectedRoute.rank === 1 && (
-                  <Badge>Recommended Route</Badge>
+                  <Badge className="text-sm py-1 px-3">⭐ Recommended Route</Badge>
                 )}
 
                 {/* Safety Score Card */}
