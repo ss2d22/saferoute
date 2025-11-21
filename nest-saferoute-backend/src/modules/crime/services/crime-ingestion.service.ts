@@ -54,9 +54,17 @@ export class CrimeIngestionService {
     const area = latRange * lngRange;
 
     // Adjust grid size based on area (rough heuristic)
-    // Small area (Southampton only): 4x4 = 16 cells
-    // Large area (Southern England): 8x8 = 64 cells
-    const gridSize = area > 1.0 ? 8 : 4;
+    // Small area (< 1.0): 4x4 = 16 cells
+    // Medium area (1.0 - 3.0): 10x10 = 100 cells
+    // Large area (> 3.0): 12x12 = 144 cells
+    let gridSize: number;
+    if (area < 1.0) {
+      gridSize = 4;
+    } else if (area < 3.0) {
+      gridSize = 10;
+    } else {
+      gridSize = 12;
+    }
 
     const latStep = latRange / gridSize;
     const lngStep = lngRange / gridSize;

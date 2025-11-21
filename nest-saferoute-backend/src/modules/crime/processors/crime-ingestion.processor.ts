@@ -41,7 +41,7 @@ export class CrimeIngestionProcessor extends WorkerHost {
       const crimes = await this.policeAPIService.getCrimesWithSplit(
         polygon,
         monthDate,
-        3, // Max depth for polygon splitting
+        5, // Max depth for polygon splitting (increased for high-density areas like London)
       );
 
       if (crimes.length === 0) {
