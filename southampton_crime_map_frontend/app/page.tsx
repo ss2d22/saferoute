@@ -115,9 +115,9 @@ export default function HomePage() {
                     </div>
                     <div className="bg-card/90 backdrop-blur-sm px-4 py-2 rounded-lg border border-border">
                       <div className="text-sm text-muted-foreground">
-                        Hotspots
+                        Distance
                       </div>
-                      <div className="text-2xl font-bold">2</div>
+                      <div className="text-2xl font-bold">1.8 km</div>
                     </div>
                   </div>
                 </div>
@@ -157,7 +157,7 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-destructive mt-1">•</span>
-                  <span>No hotspot warnings along your route</span>
+                  <span>Historical crime patterns not analyzed</span>
                 </li>
               </ul>
             </motion.div>
@@ -232,7 +232,7 @@ export default function HomePage() {
                 step: "4",
                 title: "Safety Scoring",
                 description:
-                  "View time-weighted safety scores, risk levels, and hotspot warnings for each route",
+                  "View detailed safety scores (0-100), risk levels, and per-segment analysis for each route alternative",
               },
             ].map((item, index) => (
               <motion.div
@@ -266,12 +266,18 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Powered by Advanced Technology</h2>
             <p className="text-xl text-muted-foreground">
-              Enterprise-grade architecture for reliable safety analysis
+              Modern TypeScript stack with enterprise-grade architecture
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {[
+              {
+                icon: Server,
+                title: "NestJS + TypeScript",
+                description:
+                  "Enterprise-grade NestJS backend with TypeScript, TypeORM, and PostgreSQL provides robust API architecture with type safety and maintainability.",
+              },
               {
                 icon: Database,
                 title: "H3 Spatial Indexing",
@@ -282,13 +288,13 @@ export default function HomePage() {
                 icon: Zap,
                 title: "Redis Caching",
                 description:
-                  "Lightning-fast response times with Redis-based caching layer for frequently accessed routes and safety data.",
+                  "Lightning-fast response times with IORedis-powered caching layer for frequently accessed routes and safety data.",
               },
               {
-                icon: Server,
-                title: "Background Processing",
+                icon: BarChart3,
+                title: "BullMQ Job Queues",
                 description:
-                  "Celery-based automated crime data ingestion from UK Police API with periodic grid rebuilding for up-to-date information.",
+                  "Reliable background job processing with BullMQ handles automated crime data ingestion and periodic H3 grid rebuilding.",
               },
               {
                 icon: Clock,
@@ -362,7 +368,7 @@ export default function HomePage() {
                 features: [
                   "Real-time safety data",
                   "Multiple route options",
-                  "Hotspot warnings",
+                  "Interactive crime heatmap",
                 ],
               },
               {
@@ -493,7 +499,7 @@ export default function HomePage() {
                   How fresh is the crime data?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground">
-                  We use official UK Police API data with automated background processing via Celery workers. Our system periodically ingests new data and rebuilds the H3 spatial grid to ensure you always have the most current crime statistics for Southampton.
+                  We use official UK Police API data with automated background job processing via BullMQ queues. Our NestJS backend periodically ingests new data and rebuilds the H3 spatial grid to ensure you always have the most current crime statistics for Southampton.
                 </AccordionContent>
               </AccordionItem>
 
@@ -572,7 +578,7 @@ export default function HomePage() {
               <span className="font-bold">SafeRoute Southampton</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 SafeRoute. Powered by UK Police data & OpenRouteService.
+              © 2025 SafeRoute. Built with NestJS & Next.js. Data from UK Police & OpenRouteService.
             </p>
             <div className="flex gap-6 text-sm text-muted-foreground">
               <Link href="/privacy" className="hover:text-foreground">
