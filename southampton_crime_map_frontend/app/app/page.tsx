@@ -1030,16 +1030,8 @@ function MapPageContent() {
           <Button
             size="lg"
             variant={showHeatmap ? "default" : "secondary"}
-            className="rounded-full shadow-xl h-14 w-14 active:scale-95 transition-transform touch-manipulation"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowHeatmap(!showHeatmap);
-            }}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
+            className="rounded-full shadow-xl h-14 w-14 active:scale-95 transition-transform"
+            onClick={() => setShowHeatmap(!showHeatmap)}
             aria-label={showHeatmap ? "Hide crime heatmap" : "Show crime heatmap"}
           >
             <Layers className="h-5 w-5" />
