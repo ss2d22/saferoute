@@ -97,6 +97,7 @@ function MapPageContent() {
   const pickModeRef = useRef<PickMode>("none");
   const destinationMarkerRef = useRef<LeafletMarker | null>(null);
   const lastToastTimeRef = useRef<number>(0);
+  const initialLoadDone = useRef<boolean>(false);
 
   useEffect(() => {
     import("leaflet").then((leaflet) => {
@@ -106,8 +107,22 @@ function MapPageContent() {
 
   const handleMapLoad = useCallback((map: LeafletMap) => {
     mapRef.current = map;
-    loadSafetyHeatmap(map.getBounds());
-  }, []);
+    if (L.current && showHeatmap && !initialLoadDone.current) {
+      initialLoadDone.current = true;
+      setTimeout(async () => {
+        if (!mapRef.current || !L.current) return;
+        const bounds = mapRef.current.getBounds();
+        const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+        try {
+          const response = await getSafetySnapshot({
+            bbox,
+            month: "2025-09",
+          });
+          setSafetyCells(response.cells);
+        } catch (error) {}
+      }, 1000);
+    }
+  }, [showHeatmap]);
 
   const renderHeatmap = useCallback(
     (cells: SafetyCell[]) => {
@@ -259,7 +274,6 @@ function MapPageContent() {
       renderHeatmap(safetyCells);
     }
   }, [showHeatmap, safetyCells, renderHeatmap]);
-
 
   useEffect(() => {
     pickModeRef.current = pickMode;
