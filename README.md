@@ -1,7 +1,5 @@
 # SafeRoute
 
-Find the safest walking and cycling routes across Southern England using real UK crime data.
-
 ## What It Does
 
 SafeRoute processes over 2.3 million crime records to help you find safer routes across London, Southampton, and South West England. The system ingests crime data from multiple UK police forces and generates an H3 hexagonal grid that covers the entire region at ~73m resolution. Instead of just showing you the shortest path, it analyzes actual crime patterns to give you multiple route options ranked by safety.
