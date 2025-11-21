@@ -173,7 +173,7 @@ export default function HomePage() {
               </div>
               <h2 className="text-3xl font-bold mb-4">Our Solution</h2>
               <p className="text-muted-foreground mb-4">
-                SafeRoute uses H3 hexagonal spatial indexing (~73m cells) to analyze UK Police crime data across Southampton. We provide multiple route alternatives with detailed risk assessments using time-weighted and recency-weighted crime patterns.
+                SafeRoute uses H3 hexagonal spatial indexing (~73m cells) to analyze UK Police crime data across Southern England. We provide multiple route alternatives with detailed risk assessments using time-weighted and recency-weighted crime patterns.
               </p>
               <ul className="space-y-2 text-muted-foreground">
                 <li className="flex items-start gap-2">

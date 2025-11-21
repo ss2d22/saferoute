@@ -86,7 +86,7 @@ export class CrimeIngestionProcessor extends WorkerHost {
           locationDesc: normalized.streetName || 'Unknown location',
           context: normalized.context,
           persistentId: normalized.persistentId,
-          forceId: 'hampshire',
+          forceId: null, // Multiple forces covered (Metropolitan, Hampshire, Devon & Cornwall, etc.)
           lsoaCode: null,
         });
       }

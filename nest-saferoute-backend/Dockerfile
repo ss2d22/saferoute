@@ -16,7 +16,8 @@ RUN apk add --no-cache curl
 
 RUN npm install
 COPY . .
-CMD ["npm", "run", "start:dev"]
+# Increase heap size for H3 grid generation with large datasets
+CMD ["node", "--max-old-space-size=4096", "node_modules/.bin/nest", "start", "--watch"]
 
 # Build stage
 FROM base AS build

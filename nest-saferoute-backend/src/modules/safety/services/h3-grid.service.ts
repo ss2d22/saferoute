@@ -186,46 +186,53 @@ export class H3GridService {
     }
 
     const h3CellMap = new Map<string, {
-      crimes: any[];
       crimeCount: number;
       weightedCount: number;
       categoryBreakdown: Record<string, number>;
     }>();
 
     const currentDate = new Date();
+    const batchSize = 10000;
+    let processed = 0;
 
-    for (const crime of crimes) {
-      const cellId = h3.latLngToCell(crime.latitude, crime.longitude, resolution);
+    // Process crimes in batches to reduce memory usage
+    for (let i = 0; i < crimes.length; i += batchSize) {
+      const batch = crimes.slice(i, Math.min(i + batchSize, crimes.length));
 
-      if (!h3CellMap.has(cellId)) {
-        h3CellMap.set(cellId, {
-          crimes: [],
-          crimeCount: 0,
-          weightedCount: 0,
-          categoryBreakdown: {},
-        });
+      for (const crime of batch) {
+        const cellId = h3.latLngToCell(crime.latitude, crime.longitude, resolution);
+
+        if (!h3CellMap.has(cellId)) {
+          h3CellMap.set(cellId, {
+            crimeCount: 0,
+            weightedCount: 0,
+            categoryBreakdown: {},
+          });
+        }
+
+        const cellData = h3CellMap.get(cellId)!;
+        cellData.crimeCount++;
+
+        const crimeMonth = crime.month instanceof Date ? crime.month : new Date(crime.month);
+        const monthsAgo = calculateMonthsAgo(crimeMonth, currentDate);
+        const recencyWeight = getRecencyWeight(monthsAgo);
+        const harmWeight = crime.category?.harmWeightDefault || 1.0;
+        const crimeWeight = recencyWeight * harmWeight;
+
+        cellData.weightedCount += crimeWeight;
+
+        const category = crime.category?.name || 'unknown';
+        cellData.categoryBreakdown[category] = (cellData.categoryBreakdown[category] || 0) + 1;
       }
 
-      const cellData = h3CellMap.get(cellId)!;
-      cellData.crimes.push(crime);
-      cellData.crimeCount++;
-
-      const crimeMonth = crime.month instanceof Date ? crime.month : new Date(crime.month);
-      const monthsAgo = calculateMonthsAgo(crimeMonth, currentDate);
-      const recencyWeight = getRecencyWeight(monthsAgo);
-      const harmWeight = crime.category?.harmWeightDefault || 1.0;
-      const crimeWeight = recencyWeight * harmWeight;
-
-      cellData.weightedCount += crimeWeight;
-
-      const category = crime.category?.name || 'unknown';
-      cellData.categoryBreakdown[category] = (cellData.categoryBreakdown[category] || 0) + 1;
+      if ((i + batchSize) % 100000 === 0 || i + batchSize >= crimes.length) {
+        this.logger.log(`Processed ${Math.min(i + batchSize, crimes.length)}/${crimes.length} crimes, ${h3CellMap.size} cells`);
+      }
     }
 
     this.logger.log(`Generated ${h3CellMap.size} unique H3 cells with crimes`);
 
-    let processed = 0;
-
+    // Process and save cells
     for (const [cellId, cellData] of h3CellMap.entries()) {
       const [lat, lng] = h3.cellToLatLng(cellId);
       const boundary = h3.cellToBoundary(cellId, true);
