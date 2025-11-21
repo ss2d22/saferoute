@@ -135,6 +135,7 @@ function MapPageContent() {
       if (!map.getPane("heatmapPane")) {
         const pane = map.createPane("heatmapPane");
         pane.style.zIndex = "400";
+        pane.style.pointerEvents = "auto";
       }
 
       const geojsonLayer = L.current.geoJSON(
@@ -160,24 +161,24 @@ function MapPageContent() {
           style: (feature: any) => {
             const safetyScore = feature?.properties.safety_score || 0;
             let color = "#dc2626"; // strong red
-            let fillOpacity = 0.4;
+            let fillOpacity = 0.5; // Increased base opacity for mobile visibility
 
             if (safetyScore >= 75) {
               color = "#16a34a"; // strong green
-              fillOpacity = 0.25;
+              fillOpacity = 0.35; // Increased from 0.25
             } else if (safetyScore >= 50) {
               color = "#ca8a04"; // strong yellow
-              fillOpacity = 0.35;
+              fillOpacity = 0.45; // Increased from 0.35
             } else {
-              fillOpacity = 0.5; // more visible for danger zones
+              fillOpacity = 0.6; // Increased from 0.5 for danger zones
             }
 
             return {
               fillColor: color,
               fillOpacity: fillOpacity,
               color: color,
-              weight: 1,
-              opacity: 0.8,
+              weight: 1.5, // Slightly thicker borders for mobile
+              opacity: 1, // Full border opacity
             };
           },
           onEachFeature: (feature: any, layer: any) => {
