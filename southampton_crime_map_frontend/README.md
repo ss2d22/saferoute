@@ -5,7 +5,7 @@ Interactive web interface for finding safer walking and cycling routes across So
 ## Features
 
 - **Large-Scale Crime Visualization**: H3 hexagonal grid displaying 2.3M+ crimes across Southern England
-- **Interactive Map**: Click to set origin and destination points on MapLibre GL
+- **Interactive Map**: Click to set origin and destination points on Leaflet
 - **Route Visualization**: View 3 alternative routes with safety scores (0-100 scale)
 - **Real-Time Heatmap**: Crime density visualization at ~73m resolution with color-coded safety levels
 - **Turn-by-Turn Directions**: Step-by-step navigation instructions
@@ -18,7 +18,7 @@ Interactive web interface for finding safer walking and cycling routes across So
 - **Next.js 16.0.3** - React framework with App Router and Turbopack
 - **React 19** - UI library
 - **TypeScript** - Type safety
-- **MapLibre GL 5.12.0** - High-performance WebGL map rendering (handles thousands of H3 hexagons)
+- **Leaflet 1.9.4 + React Leaflet 5.0** - Interactive map rendering with H3 hexagon layers
 - **Tailwind CSS 4** - Styling
 - **shadcn/ui** - Component library (Radix UI primitives)
 - **React Hook Form + Zod** - Form handling and validation
@@ -108,7 +108,7 @@ H3 hexagonal grid visualizing 2.3M+ crimes:
 - Resolution 10 hexagons (~73m edge length)
 - Color-coded by safety score (0-100)
 - Green = safe, red = high crime
-- Thousands of cells rendered via WebGL
+- GeoJSON layers rendered with Leaflet
 - Clickable cells show crime statistics and category breakdowns
 
 ## Environment Variables

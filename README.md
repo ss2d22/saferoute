@@ -32,7 +32,7 @@ SafeRoute processes over 2.3 million crime records to help you find safer routes
 ### Frontend
 
 - **Next.js 16** - React framework with Turbopack
-- **MapLibre GL** - Interactive maps
+- **Leaflet + React Leaflet** - Interactive maps with GeoJSON layers
 - **Tailwind CSS** - Styling
 - **shadcn/ui** - UI components
 
