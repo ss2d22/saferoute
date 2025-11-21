@@ -312,6 +312,9 @@ function MapPageContent() {
     const map = mapRef.current;
     if (!map) return;
 
+    // Always remove any existing click listeners first to prevent duplicates
+    map.off("click", handleMapClick);
+
     if (pickMode !== "none") {
       const container = map.getContainer();
       container.style.cursor = "crosshair";
@@ -319,7 +322,6 @@ function MapPageContent() {
     } else {
       const container = map.getContainer();
       container.style.cursor = "";
-      map.off("click", handleMapClick);
     }
 
     return () => {
