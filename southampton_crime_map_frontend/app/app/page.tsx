@@ -97,6 +97,7 @@ function MapPageContent() {
   const heatmapLayerRef = useRef<LeafletGeoJSON | null>(null);
   const routesLayersRef = useRef<LeafletGeoJSON[]>([]);
   const originMarkerRef = useRef<LeafletMarker | null>(null);
+  const pickModeRef = useRef<PickMode>("none");
   const destinationMarkerRef = useRef<LeafletMarker | null>(null);
 
   useEffect(() => {
@@ -161,23 +162,23 @@ function MapPageContent() {
           style: (feature: any) => {
             const safetyScore = feature?.properties.safety_score || 0;
             let color = "#dc2626"; // strong red
-            let fillOpacity = 0.5; // Increased base opacity for mobile visibility
+            let fillOpacity = 0.7; // Much higher base opacity for mobile
 
             if (safetyScore >= 75) {
               color = "#16a34a"; // strong green
-              fillOpacity = 0.35; // Increased from 0.25
+              fillOpacity = 0.5; // Increased significantly for mobile
             } else if (safetyScore >= 50) {
               color = "#ca8a04"; // strong yellow
-              fillOpacity = 0.45; // Increased from 0.35
+              fillOpacity = 0.6; // Increased significantly for mobile
             } else {
-              fillOpacity = 0.6; // Increased from 0.5 for danger zones
+              fillOpacity = 0.7; // Very high for danger zones on mobile
             }
 
             return {
               fillColor: color,
               fillOpacity: fillOpacity,
               color: color,
-              weight: 1.5, // Slightly thicker borders for mobile
+              weight: 2, // Thicker borders for mobile visibility
               opacity: 1, // Full border opacity
             };
           },
@@ -261,13 +262,19 @@ function MapPageContent() {
     }
   }, [showHeatmap, safetyCells, renderHeatmap]);
 
+
+  useEffect(() => {
+    pickModeRef.current = pickMode;
+  }, [pickMode]);
+
   const handleMapClick = useCallback(
     (e: LeafletMouseEvent) => {
       if (!L.current) return;
 
       const { lat, lng } = e.latlng;
+      const currentPickMode = pickModeRef.current;
 
-      if (pickMode === "origin") {
+      if (currentPickMode === "origin") {
         setOrigin({ lat, lng });
         if (originMarkerRef.current) {
           mapRef.current?.removeLayer(originMarkerRef.current);
@@ -285,7 +292,7 @@ function MapPageContent() {
         originMarkerRef.current = marker;
         setPickMode("none");
         toast.success("Origin set");
-      } else if (pickMode === "destination") {
+      } else if (currentPickMode === "destination") {
         setDestination({ lat, lng });
         if (destinationMarkerRef.current) {
           mapRef.current?.removeLayer(destinationMarkerRef.current);
@@ -305,33 +312,31 @@ function MapPageContent() {
         toast.success("Destination set");
       }
     },
-    [pickMode]
+    [] // No dependencies - use ref instead
   );
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    // Always remove any existing click listeners first to prevent duplicates
-    map.off("click", handleMapClick);
+ 
+    const container = map.getContainer();
+    container.style.cursor = pickMode !== "none" ? "crosshair" : "";
+  }, [pickMode]);
 
-    if (pickMode !== "none") {
-      const container = map.getContainer();
-      container.style.cursor = "crosshair";
-      map.on("click", handleMapClick);
-    } else {
-      const container = map.getContainer();
-      container.style.cursor = "";
-    }
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    map.on("click", handleMapClick);
 
     return () => {
       if (map) {
         map.off("click", handleMapClick);
-        const container = map.getContainer();
-        container.style.cursor = "";
       }
     };
-  }, [pickMode, handleMapClick]);
+  }, [handleMapClick]);
 
   const findSafeRoutes = async () => {
     if (!origin || !destination) {
