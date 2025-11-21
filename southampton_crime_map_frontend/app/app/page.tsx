@@ -72,7 +72,6 @@ function MapPageContent() {
   const mapRef = useRef<LeafletMap | null>(null);
   const L = useRef<any>(null);
 
-  // State
   const [loading, setLoading] = useState(false);
   const [pickMode, setPickMode] = useState<PickMode>("none");
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(
@@ -88,8 +87,6 @@ function MapPageContent() {
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [mobileRouteSheetOpen, setMobileRouteSheetOpen] = useState(false);
-
-  // Filters
   const [mode, setMode] = useState<"foot-walking" | "cycling-regular">(
     "foot-walking"
   );
@@ -99,6 +96,7 @@ function MapPageContent() {
   const originMarkerRef = useRef<LeafletMarker | null>(null);
   const pickModeRef = useRef<PickMode>("none");
   const destinationMarkerRef = useRef<LeafletMarker | null>(null);
+  const lastToastTimeRef = useRef<number>(0);
 
   useEffect(() => {
     import("leaflet").then((leaflet) => {
@@ -118,13 +116,11 @@ function MapPageContent() {
         return;
       }
 
-      // Remove existing heatmap layer
       if (heatmapLayerRef.current) {
         map.removeLayer(heatmapLayerRef.current);
         heatmapLayerRef.current = null;
       }
 
-      // Don't render if heatmap is disabled or no cells
       if (!showHeatmap) {
         return;
       }
@@ -161,25 +157,25 @@ function MapPageContent() {
           bubblingMouseEvents: false,
           style: (feature: any) => {
             const safetyScore = feature?.properties.safety_score || 0;
-            let color = "#dc2626"; // strong red
-            let fillOpacity = 0.7; // Much higher base opacity for mobile
+            let color = "#dc2626";
+            let fillOpacity = 0.7;
 
             if (safetyScore >= 75) {
-              color = "#16a34a"; // strong green
-              fillOpacity = 0.5; // Increased significantly for mobile
+              color = "#16a34a";
+              fillOpacity = 0.5;
             } else if (safetyScore >= 50) {
-              color = "#ca8a04"; // strong yellow
-              fillOpacity = 0.6; // Increased significantly for mobile
+              color = "#ca8a04";
+              fillOpacity = 0.6;
             } else {
-              fillOpacity = 0.7; // Very high for danger zones on mobile
+              fillOpacity = 0.7;
             }
 
             return {
               fillColor: color,
               fillOpacity: fillOpacity,
               color: color,
-              weight: 2, // Thicker borders for mobile visibility
-              opacity: 1, // Full border opacity
+              weight: 2,
+              opacity: 1,
             };
           },
           onEachFeature: (feature: any, layer: any) => {
@@ -235,7 +231,7 @@ function MapPageContent() {
       try {
         const response = await getSafetySnapshot({
           bbox,
-          month: "2025-09", // Use September 2025 data (latest available with 12-month lookback)
+          month: "2025-09",
         });
         setSafetyCells(response.cells);
 
@@ -273,6 +269,11 @@ function MapPageContent() {
 
       const { lat, lng } = e.latlng;
       const currentPickMode = pickModeRef.current;
+      const now = Date.now();
+
+      if (now - lastToastTimeRef.current < 500) {
+        return;
+      }
 
       if (currentPickMode === "origin") {
         setOrigin({ lat, lng });
@@ -291,6 +292,7 @@ function MapPageContent() {
           .addTo(mapRef.current!);
         originMarkerRef.current = marker;
         setPickMode("none");
+        lastToastTimeRef.current = now;
         toast.success("Origin set");
       } else if (currentPickMode === "destination") {
         setDestination({ lat, lng });
@@ -309,10 +311,11 @@ function MapPageContent() {
           .addTo(mapRef.current!);
         destinationMarkerRef.current = marker;
         setPickMode("none");
+        lastToastTimeRef.current = now;
         toast.success("Destination set");
       }
     },
-    [] // No dependencies - use ref instead
+    []
   );
 
   useEffect(() => {
@@ -359,7 +362,7 @@ function MapPageContent() {
 
       setRoutes(routesData);
       if (routesData.length > 0) {
-        setSelectedRouteId(0); // Select first route by index
+        setSelectedRouteId(0);
         renderRoutes(routesData, 0);
       }
 
@@ -376,11 +379,10 @@ function MapPageContent() {
     }
   };
 
-  // Helper function to get color based on safety score
   const getSafetyColor = useCallback((safetyScore: number): string => {
-    if (safetyScore < 50) return "#ef4444"; // red
-    if (safetyScore < 75) return "#eab308"; // yellow
-    return "#22c55e"; // green
+    if (safetyScore < 50) return "#ef4444";
+    if (safetyScore < 75) return "#eab308";
+    return "#22c55e";
   }, []);
 
   const renderRoutes = useCallback(
@@ -388,7 +390,6 @@ function MapPageContent() {
       const map = mapRef.current;
       if (!map || !L.current) return;
 
-      // Clear existing route layers
       routesLayersRef.current.forEach((layer) => map.removeLayer(layer));
       routesLayersRef.current = [];
 
@@ -1202,10 +1203,7 @@ function MapPageContent() {
                   {/* Routes List */}
                   {routes.length > 0 && (
                     <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-base">{routes.length} Routes Found</h3>
-                        <Badge variant="secondary" className="text-xs">Tap to view</Badge>
-                      </div>
+                      <h3 className="font-semibold text-base">{routes.length} Routes Found</h3>
                       {routes.map((route, index) => {
                         const isSelected = selectedRouteId === index;
                         const riskClass = route.safetyScore >= 75 ? "low" : route.safetyScore >= 50 ? "medium" : "high";
@@ -1213,15 +1211,11 @@ function MapPageContent() {
                         return (
                           <Card
                             key={index}
-                            className={`p-5 cursor-pointer transition-all active:scale-98 ${
+                            className={`p-4 transition-all ${
                               isSelected
                                 ? "ring-2 ring-primary shadow-lg border-primary/50 bg-primary/5"
-                                : "border-border/50 active:bg-accent/50"
+                                : "border-border/50"
                             }`}
-                            onClick={() => {
-                              setSelectedRouteId(index);
-                              setMobileRouteSheetOpen(true);
-                            }}
                           >
                             <div className="flex items-center justify-between mb-3">
                               {route.rank === 1 && (
@@ -1232,7 +1226,7 @@ function MapPageContent() {
                                 {riskClass} risk
                               </Badge>
                             </div>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between mb-3">
                               <div>
                                 <div className="flex items-baseline gap-1 mb-1">
                                   <p className="font-bold text-3xl">
@@ -1252,6 +1246,28 @@ function MapPageContent() {
                                   <span className="font-semibold">{Math.round(route.durationS / 60)} min</span>
                                 </div>
                               </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1"
+                                onClick={() => {
+                                  setSelectedRouteId(index);
+                                  setMobileRouteSheetOpen(true);
+                                }}
+                              >
+                                Details
+                              </Button>
+                              {route.googleMapsUrl && (
+                                <Button
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => window.open(route.googleMapsUrl, '_blank')}
+                                >
+                                  Google Maps
+                                </Button>
+                              )}
                             </div>
                           </Card>
                         );
