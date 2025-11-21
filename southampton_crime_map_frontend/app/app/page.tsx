@@ -133,6 +133,8 @@ function MapPageContent() {
         const pane = map.createPane("heatmapPane");
         pane.style.zIndex = "400";
         pane.style.pointerEvents = "auto";
+        pane.style.opacity = "1";
+        pane.style.display = "block";
       }
 
       const geojsonLayer = L.current.geoJSON(
@@ -158,24 +160,24 @@ function MapPageContent() {
           style: (feature: any) => {
             const safetyScore = feature?.properties.safety_score || 0;
             let color = "#dc2626";
-            let fillOpacity = 0.7;
+            let fillOpacity = 0.45;
 
             if (safetyScore >= 75) {
               color = "#16a34a";
-              fillOpacity = 0.5;
+              fillOpacity = 0.3;
             } else if (safetyScore >= 50) {
               color = "#ca8a04";
-              fillOpacity = 0.6;
+              fillOpacity = 0.4;
             } else {
-              fillOpacity = 0.7;
+              fillOpacity = 0.45;
             }
 
             return {
               fillColor: color,
               fillOpacity: fillOpacity,
               color: color,
-              weight: 2,
-              opacity: 1,
+              weight: 1.5,
+              opacity: 0.9,
             };
           },
           onEachFeature: (feature: any, layer: any) => {
@@ -1211,11 +1213,15 @@ function MapPageContent() {
                         return (
                           <Card
                             key={index}
-                            className={`p-4 transition-all ${
+                            className={`p-4 transition-all cursor-pointer ${
                               isSelected
                                 ? "ring-2 ring-primary shadow-lg border-primary/50 bg-primary/5"
                                 : "border-border/50"
                             }`}
+                            onClick={() => {
+                              setSelectedRouteId(index);
+                              renderRoutes(routes, index);
+                            }}
                           >
                             <div className="flex items-center justify-between mb-3">
                               {route.rank === 1 && (
@@ -1247,15 +1253,12 @@ function MapPageContent() {
                                 </div>
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="flex-1"
-                                onClick={() => {
-                                  setSelectedRouteId(index);
-                                  setMobileRouteSheetOpen(true);
-                                }}
+                                onClick={() => setMobileRouteSheetOpen(true)}
                               >
                                 Details
                               </Button>
