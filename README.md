@@ -7,7 +7,7 @@ SafeRoute processes over 2.3 million crime records to help you find safer routes
 ## Key Features
 
 - **Large-Scale Crime Grid**: 2.3+ million crimes mapped onto an H3 hexagonal grid system at resolution 10 (~73m per cell)
-- **Multi-Region Coverage**: London, Southampton, and South West England (95x larger than the original Southampton-only deployment)
+- **Multi-Region Coverage**: London, Southampton, and South West England
 - **Optimized Performance**: Handles thousands of hexagons smoothly through debouncing, cell limits, zoom-based rendering, and incremental batching
 - **Automated Data Pipeline**: BullMQ job queue processes 2,016 jobs (144 geographic cells × 14 months of data)
 - **Crime-Based Routing**: Routes are scored using weighted crime analysis with recency, time-of-day, and harm severity
