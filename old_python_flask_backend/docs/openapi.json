@@ -1,0 +1,2256 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SafeRoute API",
+    "description": "SafeRoute finds safer routes through Southampton by analyzing UK Police crime data.\n\nFeatures: Safety heatmaps with crime risk visualization, multiple route alternatives ranked by safety score, historical crime analytics with time-of-day weighting, Redis caching, and automated monthly data updates.\n\nData sources: UK Police API for crime data, OpenRouteService for routing, H3 hexagonal spatial indexing for efficient geographic queries.\n\nAuthentication is optional. Authenticated users get route history tracking, custom preferences, and higher rate limits. Use /auth/login to obtain a JWT access token.\n    ",
+    "contact": {
+      "name": "SafeRoute API Support",
+      "url": "https://github.com/ss2d22/saferoute"
+    },
+    "license": {
+      "name": "MIT License",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Check",
+        "description": "Basic liveness check.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness Check",
+        "description": "Readiness check (includes DB connection check).",
+        "operationId": "readiness_check_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Metrics",
+        "description": "Get application metrics.\n\nReturns request counts, response times, and status codes.",
+        "operationId": "get_metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register",
+        "description": "Register a new user.",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "Login user and return tokens.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Refresh",
+        "description": "Refresh access token using refresh token.",
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "Logout user by revoking refresh token.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get Current User",
+        "description": "Get current authenticated user info.",
+        "operationId": "get_current_user_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/routes/safe": {
+      "post": {
+        "tags": [
+          "routes"
+        ],
+        "summary": "Get safety-scored route options",
+        "description": "Get route alternatives with safety scores.\n\n    Queries OpenRouteService for up to 3 route options between two points, then\n    analyzes each route against historical crime data to calculate safety scores.\n\n    **Features:**\n    - Multiple route alternatives with safety scoring\n    - ~100m segment analysis for detailed risk assessment\n    - Crime hotspot detection along routes\n    - Recency-weighted crime data\n    - Time-of-day crime pattern adjustment\n    - Route history tracking (authenticated users)\n    - Cached for performance\n\n    **Transport Modes:**\n    - `foot-walking`: Walking routes\n    - `cycling-regular`: Bicycle routes\n    - `driving-car`: Car routes",
+        "operationId": "get_safe_routes_api_v1_routes_safe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafeRouteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully calculated route alternatives with safety scores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeRouteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No routes found between the specified points",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "No routes found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error calculating routes or fetching crime data"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/routes/{route_id}": {
+      "get": {
+        "tags": [
+          "routes"
+        ],
+        "summary": "Get Route",
+        "description": "Get cached route by ID.\n\nNote: Route caching not yet implemented.",
+        "operationId": "get_route_api_v1_routes__route_id__get",
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Route Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/safety/snapshot": {
+      "get": {
+        "tags": [
+          "safety"
+        ],
+        "summary": "Get safety heatmap snapshot",
+        "description": "Returns safety grid cells for a geographic bounding box.\n\n    Returns H3 hexagonal cells with safety scores calculated from UK Police crime data.\n    Each cell covers approximately 73m and includes weighted crime counts, safety scores,\n    and crime category breakdowns.\n\n    **Features:**\n    - Aggregates historical crime data with recency weighting\n    - Optional time-of-day crime pattern weighting\n    - Safety scores from 0-100 (higher = safer)\n    - Results cached for 1 hour\n\n    **Use Cases:**\n    - Display safety heatmaps\n    - Identify high-crime areas\n    - Compare safety by time of day\n    - Inform route planning",
+        "operationId": "get_safety_snapshot_api_v1_safety_snapshot_get",
+        "parameters": [
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Bounding box: min_lng,min_lat,max_lng,max_lat (WGS84)",
+              "title": "Bbox"
+            },
+            "description": "Bounding box: min_lng,min_lat,max_lng,max_lat (WGS84)",
+            "example": "-1.4044,50.9008,-1.3726,50.9197"
+          },
+          {
+            "name": "lookback_months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 24,
+              "minimum": 1,
+              "description": "Months of historical crime data (1-24)",
+              "default": 12,
+              "title": "Lookback Months"
+            },
+            "description": "Months of historical crime data (1-24)"
+          },
+          {
+            "name": "time_of_day",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Time period: 'night', 'morning', 'day', or 'evening'",
+              "title": "Time Of Day"
+            },
+            "description": "Time period: 'night', 'morning', 'day', or 'evening'",
+            "example": "night"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Safety snapshot data with cells and metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafetySnapshotResponse"
+                },
+                "example": {
+                  "cells": [
+                    {
+                      "id": "891e204d89fffff",
+                      "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [
+                          [
+                            [
+                              -1.4044,
+                              50.9008
+                            ],
+                            [
+                              -1.4035,
+                              50.9015
+                            ],
+                            [
+                              -1.4025,
+                              50.9008
+                            ],
+                            [
+                              -1.4025,
+                              50.8995
+                            ],
+                            [
+                              -1.4035,
+                              50.8988
+                            ],
+                            [
+                              -1.4044,
+                              50.8995
+                            ],
+                            [
+                              -1.4044,
+                              50.9008
+                            ]
+                          ]
+                        ]
+                      },
+                      "safety_score": 65.2,
+                      "risk_score": 0.348,
+                      "crime_count": 28,
+                      "crime_count_weighted": 42.6,
+                      "months_data": 12,
+                      "crime_breakdown": {
+                        "burglary": 8,
+                        "violence": 12,
+                        "vehicle-crime": 5
+                      }
+                    }
+                  ],
+                  "summary": {
+                    "total_cells": 248,
+                    "total_crimes": 1523,
+                    "avg_safety_score": 78.3
+                  },
+                  "meta": {
+                    "bbox": [
+                      -1.4044,
+                      50.9008,
+                      -1.3726,
+                      50.9197
+                    ],
+                    "lookback_months": 12,
+                    "time_filter": "night"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "ValidationError",
+                  "message": "Invalid bbox: Longitude must be between -180 and 180",
+                  "path": "/api/v1/safety/snapshot"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "InternalServerError",
+                  "message": "Error fetching safety snapshot: Database connection failed",
+                  "path": "/api/v1/safety/snapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/history": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get User History",
+        "description": "Get user's route history with pagination and filters.",
+        "operationId": "get_user_history_api_v1_users_me_history_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "from_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Date"
+            }
+          },
+          {
+            "name": "to_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete User History",
+        "description": "Delete all user history.",
+        "operationId": "delete_user_history_api_v1_users_me_history_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteHistoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/history/{history_id}": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete History Item",
+        "description": "Delete a single history item.",
+        "operationId": "delete_history_item_api_v1_users_me_history__history_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "history_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "History Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/settings": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get User Settings",
+        "description": "Get user settings.",
+        "operationId": "get_user_settings_api_v1_users_me_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettings"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update User Settings",
+        "description": "Update user settings.",
+        "operationId": "update_user_settings_api_v1_users_me_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete User Account",
+        "description": "Delete user account (requires password confirmation).",
+        "operationId": "delete_user_account_api_v1_users_me_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tasks/ingest-latest": {
+      "post": {
+        "tags": [
+          "admin",
+          "admin",
+          "tasks"
+        ],
+        "summary": "Trigger latest crime data ingestion",
+        "description": "Manually trigger ingestion of the latest available crime data from UK Police API.\n\n    **What it does:**\n    - Fetches crime data for all forces and areas for the latest month\n    - Stores crime records in the database\n    - Invalidates safety snapshot cache to ensure fresh data\n    - Runs as a background Celery task\n\n    **Scheduled Task:**\n    This task runs automatically on the 2nd of each month at 2:00 AM UTC.\n\n    **Typical Duration:** 10-30 minutes depending on data volume",
+        "operationId": "trigger_ingest_latest_api_v1_admin_tasks_ingest_latest_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tasks/ingest-month": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Trigger Ingest Month",
+        "description": "Manually trigger ingestion for a specific month.\n\nThis endpoint allows admins to ingest historical crime data for a\nspecific month.\n\nArgs:\n    request: Month and year to ingest\n\nReturns:\n    TaskResponse with task ID and status",
+        "operationId": "trigger_ingest_month_api_v1_admin_tasks_ingest_month_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestMonthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tasks/rebuild-grid": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Trigger Rebuild Grid",
+        "description": "Manually trigger safety grid rebuild.\n\nThis endpoint allows admins to rebuild the safety cell grid from\nexisting crime data.\n\nArgs:\n    months: Number of months of data to process (default: 12)\n\nReturns:\n    TaskResponse with task ID and status",
+        "operationId": "trigger_rebuild_grid_api_v1_admin_tasks_rebuild_grid_post",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 12,
+              "title": "Months"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tasks/cleanup-history": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Trigger Cleanup History",
+        "description": "Manually trigger route history cleanup.\n\nThis endpoint allows admins to clean up old route history records.\n\nArgs:\n    retention_days: Number of days to retain (default: 90)\n\nReturns:\n    TaskResponse with task ID and status",
+        "operationId": "trigger_cleanup_history_api_v1_admin_tasks_cleanup_history_post",
+        "parameters": [
+          {
+            "name": "retention_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 90,
+              "title": "Retention Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Task Status",
+        "description": "Get the status of a background task.\n\nArgs:\n    task_id: Celery task ID\n\nReturns:\n    Task status information",
+        "operationId": "get_task_status_api_v1_admin_tasks__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Task Status Api V1 Admin Tasks  Task Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Coordinate": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng"
+        ],
+        "title": "Coordinate",
+        "description": "Geographic coordinate."
+      },
+      "DeleteAccountRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "DeleteAccountRequest",
+        "description": "Delete account request (requires password confirmation)."
+      },
+      "DeleteHistoryResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "deleted_count": {
+            "type": "integer",
+            "title": "Deleted Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "deleted_count"
+        ],
+        "title": "DeleteHistoryResponse",
+        "description": "Response for history deletion."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HistoryListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RouteHistoryItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "HistoryListResponse",
+        "description": "Paginated history list response."
+      },
+      "IngestMonthRequest": {
+        "properties": {
+          "year": {
+            "type": "integer",
+            "maximum": 2030.0,
+            "minimum": 2010.0,
+            "title": "Year",
+            "description": "Year (2010-2030)"
+          },
+          "month": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Month",
+            "description": "Month (1-12)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "year",
+          "month"
+        ],
+        "title": "IngestMonthRequest",
+        "description": "Request to ingest a specific month."
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "User login request."
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshRequest",
+        "description": "Refresh token request."
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "description": "User registration request."
+      },
+      "RouteHistoryItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "origin": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Origin"
+          },
+          "destination": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Destination"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "safety_score_best": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safety Score Best"
+          },
+          "distance_m_best": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M Best"
+          },
+          "duration_s_best": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S Best"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "origin",
+          "destination",
+          "mode",
+          "safety_score_best",
+          "distance_m_best",
+          "duration_s_best"
+        ],
+        "title": "RouteHistoryItem",
+        "description": "Single route history item."
+      },
+      "RouteHotspot": {
+        "properties": {
+          "segment_index": {
+            "type": "integer",
+            "title": "Segment Index"
+          },
+          "location": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "risk_score": {
+            "type": "number",
+            "title": "Risk Score"
+          },
+          "risk_level": {
+            "type": "string",
+            "title": "Risk Level"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "segment_index",
+          "location",
+          "risk_score",
+          "risk_level",
+          "description"
+        ],
+        "title": "RouteHotspot",
+        "description": "Crime hotspot along route."
+      },
+      "RoutePreferences": {
+        "properties": {
+          "safety_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Safety Weight",
+            "default": 0.8
+          },
+          "lookback_months": {
+            "type": "integer",
+            "maximum": 24.0,
+            "minimum": 3.0,
+            "title": "Lookback Months",
+            "default": 12
+          },
+          "time_of_day_sensitive": {
+            "type": "boolean",
+            "title": "Time Of Day Sensitive",
+            "default": true
+          },
+          "category_weights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Weights"
+          }
+        },
+        "type": "object",
+        "title": "RoutePreferences",
+        "description": "Route safety scoring preferences."
+      },
+      "RouteResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "is_recommended": {
+            "type": "boolean",
+            "title": "Is Recommended"
+          },
+          "safety_score": {
+            "type": "number",
+            "title": "Safety Score"
+          },
+          "risk_class": {
+            "type": "string",
+            "title": "Risk Class"
+          },
+          "distance_m": {
+            "type": "integer",
+            "title": "Distance M"
+          },
+          "duration_s": {
+            "type": "integer",
+            "title": "Duration S"
+          },
+          "geometry": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Geometry"
+          },
+          "instructions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Instructions",
+            "default": []
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RouteStats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rank",
+          "is_recommended",
+          "safety_score",
+          "risk_class",
+          "distance_m",
+          "duration_s",
+          "geometry",
+          "stats"
+        ],
+        "title": "RouteResponse",
+        "description": "Single route response."
+      },
+      "RouteSegment": {
+        "properties": {
+          "segment_index": {
+            "type": "integer",
+            "title": "Segment Index"
+          },
+          "start_point": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Start Point"
+          },
+          "end_point": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "End Point"
+          },
+          "risk_score": {
+            "type": "number",
+            "title": "Risk Score"
+          },
+          "cell_count": {
+            "type": "integer",
+            "title": "Cell Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "segment_index",
+          "start_point",
+          "end_point",
+          "risk_score",
+          "cell_count"
+        ],
+        "title": "RouteSegment",
+        "description": "Individual route segment safety data."
+      },
+      "RouteStats": {
+        "properties": {
+          "total_weighted_risk": {
+            "type": "number",
+            "title": "Total Weighted Risk"
+          },
+          "max_segment_risk": {
+            "type": "number",
+            "title": "Max Segment Risk"
+          },
+          "avg_segment_risk": {
+            "type": "number",
+            "title": "Avg Segment Risk",
+            "default": 0.0
+          },
+          "segment_count": {
+            "type": "integer",
+            "title": "Segment Count",
+            "default": 0
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/RouteSegment"
+            },
+            "type": "array",
+            "title": "Segments",
+            "default": []
+          },
+          "hotspots": {
+            "items": {
+              "$ref": "#/components/schemas/RouteHotspot"
+            },
+            "type": "array",
+            "title": "Hotspots",
+            "default": []
+          },
+          "crime_breakdown": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Crime Breakdown",
+            "default": {}
+          },
+          "cells_analyzed": {
+            "type": "integer",
+            "title": "Cells Analyzed",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_weighted_risk",
+          "max_segment_risk"
+        ],
+        "title": "RouteStats",
+        "description": "Route safety statistics."
+      },
+      "SafeRouteRequest": {
+        "properties": {
+          "origin": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": "foot-walking"
+          },
+          "departure_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departure Time"
+          },
+          "preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoutePreferences"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "origin",
+          "destination"
+        ],
+        "title": "SafeRouteRequest",
+        "description": "Request for safe routes."
+      },
+      "SafeRouteResponse": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteResponse"
+            },
+            "type": "array",
+            "title": "Routes"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "routes",
+          "meta"
+        ],
+        "title": "SafeRouteResponse",
+        "description": "Response with multiple safe route options."
+      },
+      "SafetyCell": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique cell identifier (H3 hex or grid cell ID)"
+          },
+          "geometry": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Geometry",
+            "description": "GeoJSON geometry object (Polygon) representing the cell boundary in WGS84 (EPSG:4326)"
+          },
+          "safety_score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Safety Score",
+            "description": "Safety score (0-100, higher is safer). Inverse of risk_score."
+          },
+          "risk_score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Risk Score",
+            "description": "Normalized risk score (0-1, higher is more dangerous)"
+          },
+          "crime_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Crime Count",
+            "description": "Total number of crimes in this cell across all months"
+          },
+          "crime_count_weighted": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Crime Count Weighted",
+            "description": "Weighted crime count applying harm weights, recency decay, and time-of-day factors"
+          },
+          "months_data": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Months Data",
+            "description": "Number of months with available data for this cell"
+          },
+          "crime_breakdown": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Crime Breakdown",
+            "description": "Crime count breakdown by category (e.g., {'burglary': 5, 'violence': 3})"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "geometry",
+          "safety_score",
+          "risk_score",
+          "crime_count",
+          "crime_count_weighted",
+          "months_data"
+        ],
+        "title": "SafetyCell",
+        "description": "Individual safety cell in the heatmap grid.\n\nEach cell represents a geographic area with aggregated crime statistics\nand computed safety/risk scores based on historical crime data.",
+        "example": {
+          "crime_breakdown": {
+            "anti-social-behaviour": 5,
+            "burglary": 4,
+            "vehicle-crime": 3
+          },
+          "crime_count": 12,
+          "crime_count_weighted": 18.4,
+          "geometry": {
+            "coordinates": [
+              [
+                [
+                  -1.4044,
+                  50.9008
+                ],
+                [
+                  -1.4035,
+                  50.9015
+                ],
+                [
+                  -1.4025,
+                  50.9008
+                ],
+                [
+                  -1.4025,
+                  50.8995
+                ],
+                [
+                  -1.4035,
+                  50.8988
+                ],
+                [
+                  -1.4044,
+                  50.8995
+                ],
+                [
+                  -1.4044,
+                  50.9008
+                ]
+              ]
+            ],
+            "type": "Polygon"
+          },
+          "id": "891e204d89fffff",
+          "months_data": 12,
+          "risk_score": 0.175,
+          "safety_score": 82.5
+        }
+      },
+      "SafetyMeta": {
+        "properties": {
+          "bbox": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox",
+            "description": "Bounding box as [min_lng, min_lat, max_lng, max_lat] in WGS84"
+          },
+          "cell_size_m": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Cell Size M",
+            "description": "Cell size in meters (approximate)"
+          },
+          "grid_type": {
+            "type": "string",
+            "title": "Grid Type",
+            "description": "Grid system used (e.g., 'h3', 'geohash')"
+          },
+          "lookback_months": {
+            "type": "integer",
+            "maximum": 24.0,
+            "minimum": 1.0,
+            "title": "Lookback Months",
+            "description": "Number of months of historical data included"
+          },
+          "time_filter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Filter",
+            "description": "Time-of-day filter applied (night|morning|day|evening), if any"
+          },
+          "months_included": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Months Included",
+            "description": "Actual number of months with data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bbox",
+          "cell_size_m",
+          "grid_type",
+          "lookback_months",
+          "months_included"
+        ],
+        "title": "SafetyMeta",
+        "description": "Metadata about the safety snapshot request.\n\nIncludes information about the spatial extent, grid configuration,\nand temporal parameters used to generate the snapshot.",
+        "example": {
+          "bbox": [
+            -1.4044,
+            50.9008,
+            -1.3726,
+            50.9197
+          ],
+          "cell_size_m": 500,
+          "grid_type": "h3",
+          "lookback_months": 12,
+          "months_included": 12,
+          "time_filter": "night"
+        }
+      },
+      "SafetySnapshotResponse": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyCell"
+            },
+            "type": "array",
+            "title": "Cells",
+            "description": "List of safety cells, sorted by risk_score (highest first)"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/SafetySummary",
+            "description": "Aggregate statistics across all cells"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/SafetyMeta",
+            "description": "Request metadata and configuration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cells",
+          "summary",
+          "meta"
+        ],
+        "title": "SafetySnapshotResponse",
+        "description": "Complete safety snapshot response.\n\nReturns a heatmap-ready dataset of safety cells with aggregated crime\nstatistics, safety scores, and metadata for the requested geographic area.\n\nThe response is designed to be directly consumable by frontend mapping\nlibraries for rendering safety heatmaps.",
+        "example": {
+          "cells": [
+            {
+              "crime_breakdown": {
+                "anti-social-behaviour": 3,
+                "burglary": 8,
+                "vehicle-crime": 5,
+                "violence": 12
+              },
+              "crime_count": 28,
+              "crime_count_weighted": 42.6,
+              "geometry": {
+                "coordinates": [
+                  [
+                    [
+                      -1.4044,
+                      50.9008
+                    ],
+                    [
+                      -1.4035,
+                      50.9015
+                    ],
+                    [
+                      -1.4025,
+                      50.9008
+                    ],
+                    [
+                      -1.4025,
+                      50.8995
+                    ],
+                    [
+                      -1.4035,
+                      50.8988
+                    ],
+                    [
+                      -1.4044,
+                      50.8995
+                    ],
+                    [
+                      -1.4044,
+                      50.9008
+                    ]
+                  ]
+                ],
+                "type": "Polygon"
+              },
+              "id": "891e204d89fffff",
+              "months_data": 12,
+              "risk_score": 0.348,
+              "safety_score": 65.2
+            },
+            {
+              "crime_breakdown": {
+                "anti-social-behaviour": 3
+              },
+              "crime_count": 3,
+              "crime_count_weighted": 4.8,
+              "geometry": {
+                "coordinates": [
+                  [
+                    [
+                      -1.4034,
+                      50.902
+                    ],
+                    [
+                      -1.4025,
+                      50.9027
+                    ],
+                    [
+                      -1.4015,
+                      50.902
+                    ],
+                    [
+                      -1.4015,
+                      50.9007
+                    ],
+                    [
+                      -1.4025,
+                      50.9
+                    ],
+                    [
+                      -1.4034,
+                      50.9007
+                    ],
+                    [
+                      -1.4034,
+                      50.902
+                    ]
+                  ]
+                ],
+                "type": "Polygon"
+              },
+              "id": "891e204c12fffff",
+              "months_data": 11,
+              "risk_score": 0.079,
+              "safety_score": 92.1
+            }
+          ],
+          "meta": {
+            "bbox": [
+              -1.4044,
+              50.9008,
+              -1.3726,
+              50.9197
+            ],
+            "cell_size_m": 500,
+            "grid_type": "h3",
+            "lookback_months": 12,
+            "months_included": 12,
+            "time_filter": "night"
+          },
+          "summary": {
+            "avg_safety_score": 78.3,
+            "highest_risk_cell": "891e204d89fffff",
+            "lowest_risk_cell": "891e204c12fffff",
+            "total_cells": 248,
+            "total_crimes": 1523
+          }
+        }
+      },
+      "SafetySummary": {
+        "properties": {
+          "total_cells": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Cells",
+            "description": "Total number of cells in response"
+          },
+          "total_crimes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Crimes",
+            "description": "Total crimes across all cells in the time period"
+          },
+          "avg_safety_score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Avg Safety Score",
+            "description": "Average safety score across all cells (100 = perfectly safe if no data)"
+          },
+          "highest_risk_cell": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highest Risk Cell",
+            "description": "Cell ID with highest risk (None if no data)"
+          },
+          "lowest_risk_cell": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lowest Risk Cell",
+            "description": "Cell ID with lowest risk (None if no data)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_cells",
+          "total_crimes",
+          "avg_safety_score"
+        ],
+        "title": "SafetySummary",
+        "description": "Aggregate statistics for the safety snapshot.\n\nProvides overview metrics across all cells in the requested bounding box.",
+        "example": {
+          "avg_safety_score": 78.3,
+          "highest_risk_cell": "891e204d89fffff",
+          "lowest_risk_cell": "891e204c12fffff",
+          "total_cells": 248,
+          "total_crimes": 1523
+        }
+      },
+      "TaskResponse": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "task_name": {
+            "type": "string",
+            "title": "Task Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "task_name",
+          "status",
+          "message"
+        ],
+        "title": "TaskResponse",
+        "description": "Response for task submission."
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "title": "TokenResponse",
+        "description": "Token response."
+      },
+      "UserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "is_active",
+          "settings",
+          "created_at"
+        ],
+        "title": "UserResponse",
+        "description": "User info response."
+      },
+      "UserSettings": {
+        "properties": {
+          "history_enabled": {
+            "type": "boolean",
+            "title": "History Enabled",
+            "default": true
+          },
+          "history_retention_days": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "History Retention Days",
+            "default": 90
+          },
+          "default_safety_weight": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Default Safety Weight",
+            "default": 0.8
+          },
+          "default_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Mode"
+          }
+        },
+        "type": "object",
+        "title": "UserSettings",
+        "description": "User settings."
+      },
+      "UserSettingsUpdate": {
+        "properties": {
+          "history_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History Enabled"
+          },
+          "history_retention_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History Retention Days"
+          },
+          "default_safety_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Safety Weight"
+          },
+          "default_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Mode"
+          }
+        },
+        "type": "object",
+        "title": "UserSettingsUpdate",
+        "description": "User settings update request."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Health and readiness checks"
+    },
+    {
+      "name": "safety",
+      "description": "Safety heatmaps and crime statistics"
+    },
+    {
+      "name": "routes",
+      "description": "Safety-scored route planning"
+    },
+    {
+      "name": "auth",
+      "description": "Authentication and tokens"
+    },
+    {
+      "name": "users",
+      "description": "User settings and history"
+    },
+    {
+      "name": "admin",
+      "description": "Background task management"
+    },
+    {
+      "name": "tasks",
+      "description": "Celery task status"
+    }
+  ]
+}
