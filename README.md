@@ -1,7 +1,5 @@
 # SafeRoute
 
-Find the safest walking and cycling routes across Southern England using real UK crime data.
-
 ## What It Does
 
 SafeRoute processes over 2.3 million crime records to help you find safer routes across London, Southampton, and South West England. The system ingests crime data from multiple UK police forces and generates an H3 hexagonal grid that covers the entire region at ~73m resolution. Instead of just showing you the shortest path, it analyzes actual crime patterns to give you multiple route options ranked by safety.
@@ -9,7 +7,7 @@ SafeRoute processes over 2.3 million crime records to help you find safer routes
 ## Key Features
 
 - **Large-Scale Crime Grid**: 2.3+ million crimes mapped onto an H3 hexagonal grid system at resolution 10 (~73m per cell)
-- **Multi-Region Coverage**: London, Southampton, and South West England (95x larger than the original Southampton-only deployment)
+- **Multi-Region Coverage**: London, Southampton, and South West England
 - **Optimized Performance**: Handles thousands of hexagons smoothly through debouncing, cell limits, zoom-based rendering, and incremental batching
 - **Automated Data Pipeline**: BullMQ job queue processes 2,016 jobs (144 geographic cells × 14 months of data)
 - **Crime-Based Routing**: Routes are scored using weighted crime analysis with recency, time-of-day, and harm severity
@@ -173,18 +171,3 @@ Once the backend is running, Swagger docs are available at:
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run start` - Start production server
-
-## Data Coverage
-
-The system covers 4.29 square degrees across Southern England (95x larger than the initial Southampton deployment):
-
-- **London** - Full Metropolitan Police coverage (all boroughs)
-- **Southampton & South Coast** - Hampshire Constabulary
-- **South West England** - Devon & Cornwall Police (including Exeter)
-
-**Data Scale:**
-- 2.3+ million crime records ingested and processed
-- 144 geographic grid cells for parallelized API requests
-- 14 months of historical data with monthly updates
-- H3 grid generation processes crimes in 10,000-record batches with 4GB heap allocation
-- Adaptive polygon splitting (up to 5 levels deep) handles high-density areas like central London
